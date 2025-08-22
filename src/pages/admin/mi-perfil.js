@@ -54,8 +54,14 @@ const MiPerfil = () => {
   const handlePasswordChange = async (e) => {
     e.preventDefault();
     
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      toast.error("Las contraseñas no coinciden");
+    // Validation
+    if (!passwordData.currentPassword.trim()) {
+      toast.error("Ingresa tu contraseña actual");
+      return;
+    }
+
+    if (!passwordData.newPassword.trim()) {
+      toast.error("Ingresa una nueva contraseña");
       return;
     }
 
@@ -64,9 +70,23 @@ const MiPerfil = () => {
       return;
     }
 
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast.error("Las contraseñas no coinciden");
+      return;
+    }
+
+    if (passwordData.currentPassword === passwordData.newPassword) {
+      toast.error("La nueva contraseña debe ser diferente a la actual");
+      return;
+    }
+
     try {
       setLoading(true);
-      await updatePassword(passwordData.currentPassword, passwordData.newPassword);
+      console.log("Attempting to update password...");
+      
+      const result = await updatePassword(passwordData.currentPassword, passwordData.newPassword);
+      console.log("Password update result:", result);
+      
       toast.success("Contraseña actualizada exitosamente");
       setShowPasswordForm(false);
       setPasswordData({
@@ -76,7 +96,21 @@ const MiPerfil = () => {
       });
     } catch (error) {
       console.error("Error updating password:", error);
-      toast.error("Error al actualizar la contraseña");
+      
+      // Provide more specific error messages
+      let errorMessage = "Error al actualizar la contraseña";
+      
+      if (error.code === 'auth/wrong-password') {
+        errorMessage = "La contraseña actual es incorrecta";
+      } else if (error.code === 'auth/weak-password') {
+        errorMessage = "La nueva contraseña es muy débil";
+      } else if (error.code === 'auth/requires-recent-login') {
+        errorMessage = "Por seguridad, necesitas iniciar sesión nuevamente";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -261,6 +295,22 @@ const MiPerfil = () => {
                       </button>
                     </div>
                   ) : (
+                    <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-start space-x-2">
+                        <svg className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <div className="text-xs text-blue-700">
+                          <p className="font-medium mb-1">Requisitos de contraseña:</p>
+                          <ul className="space-y-1">
+                            <li>• Mínimo 6 caracteres</li>
+                            <li>• Debe ser diferente a tu contraseña actual</li>
+                            <li>• Se recomienda usar letras, números y símbolos</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                    
                     <form onSubmit={handlePasswordChange} className="space-y-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -292,7 +342,13 @@ const MiPerfil = () => {
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
                           required
                           minLength={6}
+                          placeholder="Mínimo 6 caracteres"
                         />
+                        {passwordData.newPassword && passwordData.newPassword.length < 6 && (
+                          <p className="text-xs text-red-600 mt-1">
+                            La contraseña debe tener al menos 6 caracteres
+                          </p>
+                        )}
                       </div>
 
                       <div>
@@ -309,16 +365,40 @@ const MiPerfil = () => {
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
                           required
                           minLength={6}
+                          placeholder="Confirma tu nueva contraseña"
                         />
+                        {passwordData.confirmPassword && passwordData.newPassword && 
+                         passwordData.confirmPassword !== passwordData.newPassword && (
+                          <p className="text-xs text-red-600 mt-1">
+                            Las contraseñas no coinciden
+                          </p>
+                        )}
+                        {passwordData.confirmPassword && passwordData.newPassword && 
+                         passwordData.confirmPassword === passwordData.newPassword && 
+                         passwordData.newPassword.length >= 6 && (
+                          <p className="text-xs text-green-600 mt-1">
+                            ✓ Las contraseñas coinciden
+                          </p>
+                        )}
                       </div>
 
                       <div className="flex space-x-3 pt-4">
                         <button
                           type="submit"
-                          disabled={loading}
+                          disabled={loading || !passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword || passwordData.newPassword !== passwordData.confirmPassword || passwordData.newPassword.length < 6}
                           className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 focus:ring-4 focus:ring-red-500/20 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          {loading ? "Actualizando..." : "Actualizar"}
+                          {loading ? (
+                            <div className="flex items-center justify-center">
+                              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                              Actualizando...
+                            </div>
+                          ) : (
+                            "Actualizar Contraseña"
+                          )}
                         </button>
                         <button
                           type="button"
