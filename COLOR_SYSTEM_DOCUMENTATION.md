@@ -5,13 +5,13 @@ Mantener colores consistentes entre todas las visualizaciones (gráfico de paste
 
 ## 🌈 Paleta de Colores Definida
 
-### Colores Principales (20 colores únicos)a
+### Colores Principales (20 colores únicos)
 ```javascript
 const COLOR_PALETTE = [
   '#3B82F6', // Azul brillante
   '#10B981', // Verde esmeralda
   '#F59E0B', // Ámbar
-  '#EF4444', // Rojo
+  '#EF4444', // Rojo (Gastos regulares)
   '#8B5CF6', // Violeta
   '#06B6D4', // Cian
   '#84CC16', // Lima
@@ -20,7 +20,7 @@ const COLOR_PALETTE = [
   '#6366F1', // Índigo
   '#14B8A6', // Teal
   '#F59E0B', // Amarillo
-  '#EF4444', // Rojo coral
+  '#FB7185', // Rose (Gastos recurrentes - Rojo claro)
   '#8B5CF6', // Púrpura
   '#06B6D4', // Azul cielo
   '#84CC16', // Verde claro
@@ -30,6 +30,27 @@ const COLOR_PALETTE = [
   '#14B8A6'  // Verde azulado
 ];
 ```
+
+### Colores Específicos por Tipo de Transacción
+
+#### 🔴 Gastos Regulares (Salidas)
+- **Color Principal**: `#EF4444` (red-500)
+- **Fondo**: `bg-red-50`
+- **Texto**: `text-red-600`
+- **Bordes**: `border-red-200`
+
+#### 🌹 Gastos Recurrentes
+- **Color Principal**: `#FB7185` (rose-400) - Rojo claro
+- **Fondo**: `bg-rose-50`
+- **Texto**: `text-rose-400` / `text-rose-500` / `text-rose-600`
+- **Bordes**: `border-rose-200`
+- **Gradiente**: `from-rose-50 to-pink-50`
+
+#### 🟢 Ingresos (Entradas)
+- **Color Principal**: `#10B981` (emerald-500)
+- **Fondo**: `bg-green-50`
+- **Texto**: `text-green-600`
+- **Bordes**: `border-green-200`
 
 ## 🔧 Implementación
 
@@ -103,40 +124,56 @@ const chartData = data.map(item => ({
 - Eliminación de confusión visual
 - Experiencia de usuario mejorada
 
-### 2. **Escalabilidad**
+### 2. **Diferenciación Clara por Tipo**
+- **Gastos regulares**: Rojo estándar (`#EF4444`)
+- **Gastos recurrentes**: Rose/Rosa (`#E11D48`) - Variante de rojo diferenciada
+- **Ingresos**: Verde (`#10B981`)
+- Fácil identificación visual del tipo de transacción
+
+### 3. **Escalabilidad**
 - 20 colores únicos disponibles
 - Asignación automática basada en hash del nombre
 - Soporte para nuevos conceptos sin configuración manual
 
-### 3. **Mantenibilidad**
+### 4. **Mantenibilidad**
 - Una sola función para gestionar colores
 - Fácil actualización de la paleta
 - Formato flexible (hex, tailwind, etc.)
+- Colores específicos definidos en constantes
 
-### 4. **Optimización**
+### 5. **Optimización**
 - Eliminación de leyendas duplicadas
 - Menor uso de espacio en pantalla
 - Carga más rápida de componentes
 
 ## 🔍 Ejemplos de Uso
 
-### Antes (Inconsistente)
+### Diferenciación por Tipo de Transacción
 ```
-Gráfico de Pastel:
-- Gastos Administrativos: Azul
-- Gastos Operativos: Verde
+Gastos Regulares (Salidas):
+- Color: Rojo estándar (#EF4444)
+- Uso: Transacciones de gasto normales
+- Componentes: Formularios, listas, gráficos
 
-Barras de Progreso:
-- Gastos Administrativos: Naranja  ❌ Diferente color
-- Gastos Operativos: Morado        ❌ Diferente color
+Gastos Recurrentes:
+- Color: Rose/Rosa claro (#FB7185)     ✅ Rojo claro diferenciado
+- Uso: Gastos que se repiten mensualmente
+- Componentes: Alertas, formularios, gestión recurrente
+- Características: Más suave y claro que el rojo regular
+
+Ingresos (Entradas):
+- Color: Verde (#10B981)
+- Uso: Transacciones de ingreso
+- Componentes: Formularios, dashboard, reportes
 ```
 
-### Después (Consistente)
+### Consistencia en Visualizaciones
 ```
-Ambas Visualizaciones:
+Ambas Visualizaciones (Gráficos y Listas):
 - Gastos Administrativos: Azul    ✅ Mismo color
 - Gastos Operativos: Verde        ✅ Mismo color
 - Proveedores: Naranja            ✅ Mismo color
+- Gastos Recurrentes: Rose claro  ✅ Rojo suave diferenciado de gastos regulares
 ```
 
 ## 🚀 Futuras Mejoras

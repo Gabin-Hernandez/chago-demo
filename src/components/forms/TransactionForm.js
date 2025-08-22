@@ -718,7 +718,7 @@ const TransactionForm = ({
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <div className="p-2 bg-blue-600 rounded-lg">
+                <div className="p-2 bg-rose-400 rounded-lg">
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
@@ -750,8 +750,8 @@ const TransactionForm = ({
                     });
                   }}
                   disabled={loading}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                    formData.isRecurring ? 'bg-blue-600' : 'bg-gray-200'
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-rose-400 focus:ring-offset-2 ${
+                    formData.isRecurring ? 'bg-rose-400' : 'bg-gray-200'
                   } ${loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                 >
                   <span
@@ -766,16 +766,16 @@ const TransactionForm = ({
               </div>
             </div>
             {formData.isRecurring && (
-              <div className="mt-4 p-3 bg-blue-100 rounded-md">
+              <div className="mt-4 p-3 bg-rose-50 rounded-md">
                 <div className="flex items-start space-x-2">
-                  <svg className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 text-rose-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <div className="text-xs text-blue-700">
+                  <div className="text-xs text-rose-600">
                     <p className="font-medium mb-2">¿Cómo funciona?</p>
                     <div className="space-y-2">
                       <div>
-                        <p className="font-medium text-blue-800 mb-1">📅 Generación automática:</p>
+                        <p className="font-medium text-rose-600 mb-1">📅 Generación automática:</p>
                         <ul className="space-y-1 ml-2">
                           <li>• Se creará automáticamente una transacción pendiente cada mes</li>
                           <li>• Aparecerá el primer día del siguiente mes</li>
@@ -783,7 +783,7 @@ const TransactionForm = ({
                         </ul>
                       </div>
                       <div>
-                        <p className="font-medium text-blue-800 mb-1">⚙️ Gestión y control:</p>
+                        <p className="font-medium text-rose-600 mb-1">⚙️ Gestión y control:</p>
                         <ul className="space-y-1 ml-2">
                           <li>• Podrás activar/desactivar desde "Gastos Recurrentes"</li>
                           <li>• Cuando se desactiva solo se generará para el mes actual</li>

@@ -45,10 +45,10 @@ const RecurringExpenseAlert = () => {
   };
 
   return (
-    <div className="bg-gradient-to-r from-purple-50 to-purple-100 border border-purple-200 rounded-xl p-6 mb-6">
+    <div className="bg-gradient-to-r from-rose-50 to-pink-50 border border-rose-200 rounded-xl p-6 mb-6">
       <div className="flex items-start justify-between">
         <div className="flex items-start space-x-4">
-          <div className="p-3 bg-purple-600 rounded-xl shadow-lg">
+          <div className="p-3 bg-rose-400 rounded-xl shadow-lg">
             <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
@@ -58,14 +58,14 @@ const RecurringExpenseAlert = () => {
               Gastos Recurrentes Pendientes
             </h3>
             <p className="text-gray-700 mb-3">
-              Tienes <span className="font-semibold text-purple-700">{pendingExpenses.length}</span> gastos recurrentes 
+              Tienes <span className="font-semibold text-rose-500">{pendingExpenses.length}</span> gastos recurrentes 
               que necesitan ser generados para el próximo mes.
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
               <button
                 onClick={handleGenerateNow}
                 disabled={generating}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 focus:ring-4 focus:ring-purple-500/20 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                className="px-4 py-2 bg-rose-400 text-white rounded-lg hover:bg-rose-500 focus:ring-4 focus:ring-rose-400/20 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
               >
                 {generating ? (
                   <>
@@ -86,7 +86,7 @@ const RecurringExpenseAlert = () => {
               </button>
               <button
                 onClick={handleViewRecurring}
-                className="px-4 py-2 bg-white text-purple-700 border border-purple-300 rounded-lg hover:bg-purple-50 focus:ring-4 focus:ring-purple-500/20 transition-all duration-200 font-medium"
+                className="px-4 py-2 bg-white text-rose-500 border border-rose-300 rounded-lg hover:bg-rose-50 focus:ring-4 focus:ring-rose-400/20 transition-all duration-200 font-medium"
               >
                 Ver Gastos Recurrentes
               </button>
@@ -95,7 +95,7 @@ const RecurringExpenseAlert = () => {
         </div>
         <button
           onClick={handleDismiss}
-          className="p-2 text-purple-400 hover:text-purple-600 hover:bg-purple-200 rounded-lg transition-colors"
+          className="p-2 text-rose-300 hover:text-rose-400 hover:bg-rose-100 rounded-lg transition-colors"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -105,11 +105,11 @@ const RecurringExpenseAlert = () => {
       
       {/* Lista de gastos pendientes */}
       {pendingExpenses.length > 0 && (
-        <div className="mt-4 pt-4 border-t border-purple-200">
+        <div className="mt-4 pt-4 border-t border-rose-200">
           <h4 className="text-sm font-medium text-gray-700 mb-2">Gastos pendientes de generar:</h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
             {pendingExpenses.slice(0, 6).map((expense, index) => (
-              <div key={expense.id} className="bg-white/60 rounded-lg p-3 border border-purple-200">
+              <div key={expense.id} className="bg-white/60 rounded-lg p-3 border border-rose-200">
                 <p className="text-sm font-medium text-gray-900 truncate">
                   {expense.description || 'Gasto recurrente'}
                 </p>
@@ -119,7 +119,7 @@ const RecurringExpenseAlert = () => {
               </div>
             ))}
             {pendingExpenses.length > 6 && (
-              <div className="bg-white/60 rounded-lg p-3 border border-purple-200 flex items-center justify-center">
+              <div className="bg-white/60 rounded-lg p-3 border border-rose-200 flex items-center justify-center">
                 <p className="text-xs text-gray-600">
                   +{pendingExpenses.length - 6} más
                 </p>

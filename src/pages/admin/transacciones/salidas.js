@@ -362,7 +362,7 @@ const SolicitudesPago = () => {
                   {/* Botón Gastos Recurrentes */}
                   <button
                     onClick={() => router.push('/admin/transacciones/recurrentes')}
-                    className="px-6 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 focus:ring-4 focus:ring-purple-500/20 focus:ring-offset-2 flex items-center justify-center transition-all duration-200 shadow-lg hover:shadow-xl font-medium relative"
+                    className="px-6 py-3 bg-rose-400 text-white rounded-xl hover:bg-rose-500 focus:ring-4 focus:ring-rose-400/20 focus:ring-offset-2 flex items-center justify-center transition-all duration-200 shadow-lg hover:shadow-xl font-medium relative"
                   >
                     <svg
                       className="w-5 h-5 mr-2"
@@ -600,22 +600,22 @@ const SolicitudesPago = () => {
                     
                     {/* Información sobre gastos recurrentes */}
                     {hasPendingGeneration && pendingExpenses.length > 0 && (
-                      <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-6">
+                      <div className="bg-rose-50 border border-rose-200 rounded-lg p-4 mb-6">
                         <div className="flex items-center justify-center mb-2">
-                          <svg className="w-5 h-5 text-purple-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-5 h-5 text-rose-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                           </svg>
-                          <h4 className="text-sm font-semibold text-purple-900">
+                          <h4 className="text-sm font-semibold text-rose-700">
                             Gastos Recurrentes Pendientes
                           </h4>
                         </div>
-                        <p className="text-sm text-purple-700 mb-3">
+                        <p className="text-sm text-rose-600 mb-3">
                           Tienes <span className="font-semibold">{pendingExpenses.length}</span> gastos recurrentes 
                           que se generarán automáticamente el próximo mes
                         </p>
                         <button
                           onClick={() => router.push('/admin/transacciones/recurrentes')}
-                          className="text-sm text-purple-600 hover:text-purple-800 font-medium underline"
+                          className="text-sm text-rose-500 hover:text-rose-600 font-medium underline"
                         >
                           Ver gastos recurrentes →
                         </button>
@@ -646,7 +646,7 @@ const SolicitudesPago = () => {
                       {hasPendingGeneration && (
                         <button
                           onClick={() => router.push('/admin/transacciones/recurrentes')}
-                          className="inline-flex items-center px-6 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 focus:ring-4 focus:ring-purple-500/20 transition-all duration-200 font-medium shadow-lg"
+                          className="inline-flex items-center px-6 py-3 bg-rose-400 text-white rounded-xl hover:bg-rose-500 focus:ring-4 focus:ring-rose-400/20 transition-all duration-200 font-medium shadow-lg"
                         >
                           <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
