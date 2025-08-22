@@ -772,12 +772,25 @@ const TransactionForm = ({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <div className="text-xs text-blue-700">
-                    <p className="font-medium mb-1">¿Cómo funciona?</p>
-                    <ul className="space-y-1">
-                      <li>• Se creará automáticamente una transacción pendiente cada mes</li>
-                      <li>• Aparecerá el primer día del siguiente mes</li>
-                      <li>• Podrás gestionar los gastos recurrentes desde el panel de administración</li>
-                    </ul>
+                    <p className="font-medium mb-2">¿Cómo funciona?</p>
+                    <div className="space-y-2">
+                      <div>
+                        <p className="font-medium text-blue-800 mb-1">📅 Generación automática:</p>
+                        <ul className="space-y-1 ml-2">
+                          <li>• Se creará automáticamente una transacción pendiente cada mes</li>
+                          <li>• Aparecerá el primer día del siguiente mes</li>
+                          <li>• Mantendrá todos los datos del gasto original</li>
+                        </ul>
+                      </div>
+                      <div>
+                        <p className="font-medium text-blue-800 mb-1">⚙️ Gestión y control:</p>
+                        <ul className="space-y-1 ml-2">
+                          <li>• Podrás activar/desactivar desde "Gastos Recurrentes"</li>
+                          <li>• Cuando se desactiva solo se generará para el mes actual</li>
+                          <li>• Puedes reactivarlo en cualquier momento</li>
+                        </ul>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

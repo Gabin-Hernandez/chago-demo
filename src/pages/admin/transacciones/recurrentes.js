@@ -254,7 +254,7 @@ const GastosRecurrentes = () => {
                 <p className="font-medium mb-1">ℹ️ Información importante sobre gastos recurrentes:</p>
                 <ul className="space-y-1 text-blue-700">
                   <li>• <strong>Activar:</strong> El gasto se generará automáticamente cada mes como pendiente</li>
-                  <li>• <strong>Desactivar:</strong> Se eliminan todas las transacciones futuras, pero se mantienen las del mes actual y anteriores</li>
+                  <li>• <strong>Desactivar:</strong> Solo se generará para el mes actual, no para meses futuros</li>
                   <li>• <strong>Eliminar:</strong> Se borra completamente el gasto recurrente (no afecta transacciones ya creadas)</li>
                 </ul>
               </div>
