@@ -160,7 +160,27 @@ CRON_SECRET=tu-clave-secreta-para-cron
 
 ### 3. Gastos Estacionales
 - Se pueden desactivar temporalmente
+- **Importante**: Al desactivar se eliminan transacciones futuras automáticamente
 - Reactivar cuando sea necesario
+
+## Gestión de Transacciones Futuras
+
+### Comportamiento al Desactivar
+Cuando se desactiva un gasto recurrente:
+
+1. **Transacciones del mes actual y anteriores**: Se mantienen intactas
+2. **Transacciones de meses futuros**: Se eliminan automáticamente
+3. **Confirmación**: El sistema pide confirmación antes de desactivar
+4. **Feedback**: Se notifica al usuario sobre las transacciones eliminadas
+
+### Lógica de Limpieza
+```javascript
+// Solo se eliminan transacciones futuras (próximo mes en adelante)
+const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+if (transactionDate >= startOfNextMonth) {
+  // Eliminar transacción
+}
+```
 
 ## Monitoreo y Mantenimiento
 

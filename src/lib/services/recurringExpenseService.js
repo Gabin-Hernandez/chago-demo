@@ -151,12 +151,55 @@ export const recurringExpenseService = {
     }
   },
 
+  // Clean future transactions for a recurring expense
+  async cleanFutureTransactions(recurringExpenseId, user) {
+    try {
+      const now = new Date();
+      const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      
+      // Get all transactions from this recurring expense
+      const transactionsQuery = query(
+        collection(db, "transactions"),
+        where("recurringExpenseId", "==", recurringExpenseId),
+        where("isRecurring", "==", true)
+      );
+      
+      const querySnapshot = await getDocs(transactionsQuery);
+      const deletedTransactions = [];
+      
+      for (const docSnapshot of querySnapshot.docs) {
+        const transaction = { id: docSnapshot.id, ...docSnapshot.data() };
+        const transactionDate = transaction.date.toDate ? transaction.date.toDate() : new Date(transaction.date);
+        
+        // Only delete transactions from next month onwards (keep current month and past)
+        if (transactionDate >= startOfNextMonth) {
+          await transactionService.delete(transaction.id, user);
+          deletedTransactions.push(transaction);
+          console.log(`Deleted future recurring transaction: ${transaction.id} for date ${transactionDate.toLocaleDateString()}`);
+        }
+      }
+      
+      console.log(`Cleaned ${deletedTransactions.length} future transactions for recurring expense ${recurringExpenseId}`);
+      return deletedTransactions;
+    } catch (error) {
+      console.error("Error cleaning future transactions:", error);
+      throw new Error("Error al limpiar transacciones futuras");
+    }
+  },
+
   // Toggle active status
   async toggleActive(id, user) {
     try {
       const expense = await this.getById(id);
-      await this.update(id, { isActive: !expense.isActive }, user);
-      return !expense.isActive;
+      const newActiveStatus = !expense.isActive;
+      
+      // If deactivating, clean future transactions
+      if (!newActiveStatus) {
+        await this.cleanFutureTransactions(id, user);
+      }
+      
+      await this.update(id, { isActive: newActiveStatus }, user);
+      return newActiveStatus;
     } catch (error) {
       console.error("Error toggling recurring expense:", error);
       throw new Error("Error al cambiar el estado del gasto recurrente");

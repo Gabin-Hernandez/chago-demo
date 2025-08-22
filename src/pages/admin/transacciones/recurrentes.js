@@ -83,16 +83,34 @@ const GastosRecurrentes = () => {
   };
 
   const handleToggleActive = async (expenseId, currentStatus) => {
+    // Si se va a desactivar, mostrar confirmación
+    if (currentStatus) {
+      const confirmed = confirm(
+        "¿Estás seguro de que deseas desactivar este gasto recurrente?\n\n" +
+        "⚠️ Esto eliminará todas las transacciones futuras generadas por este gasto recurrente.\n" +
+        "Las transacciones del mes actual y anteriores se mantendrán."
+      );
+      
+      if (!confirmed) {
+        return;
+      }
+    }
+
     try {
-      await recurringExpenseService.toggleActive(expenseId);
+      const newStatus = await recurringExpenseService.toggleActive(expenseId);
       setRecurringExpenses(prev => 
         prev.map(expense => 
           expense.id === expenseId 
-            ? { ...expense, isActive: !currentStatus }
+            ? { ...expense, isActive: newStatus }
             : expense
         )
       );
-      toast.success(`Gasto recurrente ${!currentStatus ? 'activado' : 'desactivado'} exitosamente`);
+      
+      if (newStatus) {
+        toast.success("Gasto recurrente activado exitosamente");
+      } else {
+        toast.success("Gasto recurrente desactivado y transacciones futuras eliminadas");
+      }
     } catch (error) {
       console.error("Error toggling expense:", error);
       toast.error("Error al cambiar el estado del gasto");
@@ -223,6 +241,23 @@ const GastosRecurrentes = () => {
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* Información sobre funcionamiento */}
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+            <div className="flex items-start space-x-3">
+              <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div className="text-sm text-blue-800">
+                <p className="font-medium mb-1">ℹ️ Información importante sobre gastos recurrentes:</p>
+                <ul className="space-y-1 text-blue-700">
+                  <li>• <strong>Activar:</strong> El gasto se generará automáticamente cada mes como pendiente</li>
+                  <li>• <strong>Desactivar:</strong> Se eliminan todas las transacciones futuras, pero se mantienen las del mes actual y anteriores</li>
+                  <li>• <strong>Eliminar:</strong> Se borra completamente el gasto recurrente (no afecta transacciones ya creadas)</li>
+                </ul>
+              </div>
             </div>
           </div>
 
