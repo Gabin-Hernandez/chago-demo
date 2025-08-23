@@ -261,16 +261,39 @@ const TransactionForm = ({
             setUploadingAttachments(true);
             setAttachmentProgress(0);
             const attachments = [];
+            
+            toast.info(`Subiendo ${files.length} archivo(s)...`);
+            
             for (let i = 0; i < files.length; i++) {
               const file = files[i];
-              const attachment = await paymentService.uploadFile(file, result.id);
-              attachments.push(attachment);
+              console.log(`Uploading file ${i + 1}/${files.length}:`, file.name);
+              
+              try {
+                const attachment = await paymentService.uploadFile(file, result.id);
+                attachments.push(attachment);
+                console.log(`File ${file.name} uploaded successfully:`, attachment);
+              } catch (fileError) {
+                console.error(`Error uploading file ${file.name}:`, fileError);
+                toast.error(`Error subiendo ${file.name}: ${fileError.message}`);
+              }
+              
               const progress = Math.round(((i + 1) / files.length) * 100);
               setAttachmentProgress(progress);
             }
-            await transactionService.update(result.id, { attachments }, user);
+            
+            if (attachments.length > 0) {
+              await transactionService.update(result.id, { attachments }, user);
+              toast.success(`${attachments.length} archivo(s) subido(s) exitosamente`);
+            }
+            
+            if (attachments.length < files.length) {
+              const failedCount = files.length - attachments.length;
+              toast.warning(`${failedCount} archivo(s) no se pudieron subir`);
+            }
+            
           } catch (err) {
             console.error("Error uploading attachments:", err);
+            toast.error("Error general subiendo archivos: " + err.message);
           } finally {
             setUploadingAttachments(false);
           }
@@ -648,6 +671,9 @@ const TransactionForm = ({
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Adjuntos (opcional)
           </label>
+          <p className="text-xs text-gray-500 mb-3">
+            Puedes subir múltiples archivos (imágenes, PDFs, etc.) arrastrándolos o seleccionándolos
+          </p>
           {uploadingAttachments && (
             <div className="mb-2 w-full bg-gray-100 rounded h-2 overflow-hidden">
               <div
@@ -658,31 +684,44 @@ const TransactionForm = ({
             </div>
           )}
           <FileUpload
-            onUpload={(selectedFiles) => setFiles(selectedFiles)}
+            onUpload={(selectedFiles) => {
+              console.log('Files selected:', selectedFiles);
+              setFiles(prev => [...prev, ...selectedFiles]);
+            }}
             existingFiles={[]}
-            multiple
+            multiple={true}
             disabled={loading || uploadingAttachments}
+            acceptedTypes={["image/jpeg", "image/jpg", "image/png", "image/gif", "application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain"]}
+            maxSize={10 * 1024 * 1024} // 10MB
           />
           {files.length > 0 && !uploadingAttachments && (
             <div className="mt-3">
-              <div className="text-xs text-gray-600 mb-2">{files.length} archivo(s) listo(s) para subir</div>
-              <div className="flex flex-wrap gap-2">
+              <div className="text-xs text-gray-600 mb-2">
+                <strong>{files.length}</strong> archivo(s) seleccionado(s) para subir
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 {files.map((f, idx) => (
-                  <div key={idx} className="flex items-center space-x-2 px-2 py-1 border border-gray-200 rounded-md bg-gray-50">
-                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div key={idx} className="flex items-center space-x-2 px-3 py-2 border border-gray-200 rounded-md bg-gray-50 hover:bg-gray-100 transition-colors">
+                    <svg className="w-4 h-4 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                     </svg>
-                    <span className="text-xs text-gray-700 truncate max-w-[160px]" title={f.name}>{f.name}</span>
-                    <span className="text-[10px] text-gray-500">{formatSize(f.size)}</span>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-xs text-gray-700 truncate block" title={f.name}>{f.name}</span>
+                      <span className="text-[10px] text-gray-500">{formatSize(f.size)}</span>
+                    </div>
                     <button
                       type="button"
                       onClick={() => setFiles(prev => prev.filter((_, i) => i !== idx))}
-                      className="text-red-600 hover:text-red-800 text-xs"
+                      className="text-red-600 hover:text-red-800 text-xs font-medium flex-shrink-0 ml-2"
+                      title="Eliminar archivo"
                     >
-                      Eliminar
+                      ✕
                     </button>
                   </div>
                 ))}
+              </div>
+              <div className="mt-2 text-xs text-blue-600">
+                💡 Tip: Puedes seleccionar más archivos para agregarlos a la lista
               </div>
             </div>
           )}

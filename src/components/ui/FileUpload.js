@@ -247,15 +247,20 @@ const FileUpload = ({
                       : "text-primary bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
                   }`}
                 >
-                  Seleccionar archivos
+                  {multiple ? "Seleccionar archivos" : "Seleccionar archivo"}
                 </button>
                 <p className="mt-2 text-sm text-gray-600">
-                  o arrastra y suelta aquí
+                  o arrastra y suelta {multiple ? "archivos" : "archivo"} aquí
                 </p>
               </div>
               <p className="mt-2 text-xs text-gray-500">
-                JPG, PNG, PDF hasta {formatFileSize(maxSize)}
+                {multiple ? "Múltiples archivos:" : "Un archivo:"} JPG, PNG, PDF hasta {formatFileSize(maxSize)}
               </p>
+              {multiple && (
+                <p className="text-xs text-blue-600 mt-1">
+                  💡 Puedes seleccionar varios archivos a la vez
+                </p>
+              )}
             </>
           )}
         </div>
