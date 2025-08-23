@@ -4,10 +4,8 @@ import { conceptService } from './conceptService';
 import { descriptionService } from './descriptionService';
 import { createEnhancedPDFReport } from './pdfTemplates';
 import * as XLSX from 'xlsx';
-import { jsPDF } from 'jspdf';
-import { autoTable } from 'jspdf-autotable';
 
-export const reportService = {
+export const reportServiceEnhanced = {
   // Get filtered transactions for reports with pending carryover
   async getFilteredTransactions(filters) {
     try {
