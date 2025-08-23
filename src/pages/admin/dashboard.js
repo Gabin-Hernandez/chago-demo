@@ -9,7 +9,7 @@ import { dashboardService } from "../../lib/services/dashboardService";
 import { generalService } from "../../lib/services/generalService";
 import { transactionService } from "../../lib/services/transactionService";
 import { conceptService } from "../../lib/services/conceptService";
-import { subconceptService } from "../../lib/services/subconceptService";
+
 import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
 
 const Dashboard = () => {
@@ -25,7 +25,7 @@ const Dashboard = () => {
   });
   const [conceptData, setConceptData] = useState({});
   const [generalData, setGeneralData] = useState({});
-  const [subconceptData, setSubconceptData] = useState({});
+
   const [monthlyTrends, setMonthlyTrends] = useState([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [currentMonthName, setCurrentMonthName] = useState("");
@@ -127,13 +127,12 @@ const Dashboard = () => {
       const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59);
 
       // Load all dashboard data in parallel for the selected month
-      const [summaryData, conceptsData, trendsData, allTransactions, allConcepts, allSubconcepts] = await Promise.all([
+      const [summaryData, conceptsData, trendsData, allTransactions, allConcepts] = await Promise.all([
         dashboardService.getMonthSummary(startOfMonth, endOfMonth),
         dashboardService.getTransactionsByConceptForDateRange(startOfMonth, endOfMonth),
         dashboardService.getMonthlyTrends(),
         transactionService.getByDateRange(startOfMonth, endOfMonth),
         conceptService.getAll(),
-        subconceptService.getAll(),
       ]);
 
       // Agrupar transacciones por General (misma estructura que otros charts)
@@ -158,28 +157,11 @@ const Dashboard = () => {
         }
       });
 
-      // Agrupar transacciones por subconcepto (solo gastos)
-      const subconceptMap = {};
-      allSubconcepts.forEach(sc => {
-        subconceptMap[sc.id] = sc.name;
-      });
-      const subData = {};
-      allTransactions.forEach(tx => {
-        if (tx.type === 'salida') {
-          const name = tx.subconceptId ? (subconceptMap[tx.subconceptId] || 'Sin Subconcepto') : 'Sin Subconcepto';
-          if (!subData[name]) {
-            subData[name] = { entradas: 0, salidas: 0, total: 0, count: 0 };
-          }
-          subData[name].salidas += tx.amount;
-          subData[name].total += tx.amount;
-          subData[name].count += 1;
-        }
-      });
+
 
       setSummary(summaryData);
       setConceptData(conceptsData);
       setGeneralData(genData);
-      setSubconceptData(subData);
       setMonthlyTrends(trendsData);
     } catch (err) {
       console.error("Error loading dashboard data:", err);
@@ -369,21 +351,7 @@ const Dashboard = () => {
             )}
           </div>
 
-          {/* Gastos por Subconcepto */}
-          <div className="w-full">
-            <h2 className="text-xl font-bold text-foreground mb-4">Gastos por Subconcepto</h2>
-            {Object.keys(subconceptData).length > 0 ? (
-              <BarConceptChart data={subconceptData} type="salidas" />
-            ) : (
-              <div className="bg-background rounded-lg border border-border p-6">
-                <div className="border-2 border-dashed border-border rounded-lg h-64 flex items-center justify-center">
-                  <div className="text-center">
-                    <p className="text-muted-foreground">No hay gastos registrados este mes</p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+
         </div>
 
         {/* Monthly Trends Chart */}
