@@ -114,7 +114,7 @@ const TransactionDetail = () => {
 
       setConcept(conceptData);
       setSubconcept(subconceptData);
-      setPayments(paymentsData);
+      setPayments(Array.isArray(paymentsData) ? paymentsData : []);
 
       // Load general: prefer transaction.generalId, else derive from concept
       let generalData = null;
@@ -144,7 +144,7 @@ const TransactionDetail = () => {
   };
 
   const handlePaymentUpdate = (updatedPayments) => {
-    setPayments(updatedPayments);
+    setPayments(Array.isArray(updatedPayments) ? updatedPayments : []);
   };
 
   // Utility functions
@@ -205,10 +205,10 @@ const TransactionDetail = () => {
   };
 
   const getPaymentMetrics = () => {
-    if (!transaction || !payments) return { paid: 0, remaining: 0, progress: 0 };
+    if (!transaction || !payments || !Array.isArray(payments)) return { paid: 0, remaining: 0, progress: 0 };
 
     const totalAmount = transaction.amount || 0;
-    const paidAmount = payments.reduce((sum, payment) => sum + payment.amount, 0);
+    const paidAmount = payments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
     const remainingAmount = Math.max(0, totalAmount - paidAmount);
     const progress = totalAmount > 0 ? Math.min(100, (paidAmount / totalAmount) * 100) : 0;
 
@@ -399,7 +399,7 @@ const TransactionDetail = () => {
           <div className="border border-border rounded-lg p-4 bg-background">
              <h2 className="text-sm font-medium mb-3">Información Adicional</h2>
             <div className="space-y-3">
-              {transaction.attachments && transaction.attachments.length > 0 && (
+              {transaction.attachments && Array.isArray(transaction.attachments) && transaction.attachments.length > 0 && (
                 <div>
                   <div className="flex items-center space-x-2 mb-2">
                     <Paperclip className="w-4 h-4 text-primary" />
@@ -510,7 +510,7 @@ const TransactionDetail = () => {
 
         {/* Payment History */}
         <div>
-          {payments.length > 0 && (
+          {payments && Array.isArray(payments) && payments.length > 0 && (
             <div className="space-y-4">
               {payments.map((payment, index) => (
                 <div
@@ -553,7 +553,7 @@ const TransactionDetail = () => {
                     </div>
                   )}
 
-                  {payment.attachments && payment.attachments.length > 0 && (
+                  {payment.attachments && Array.isArray(payment.attachments) && payment.attachments.length > 0 && (
                     <div className="pl-11">
                       <div className="flex items-center space-x-2 mb-3">
                         <Paperclip className="w-4 h-4 text-purple-600" />
