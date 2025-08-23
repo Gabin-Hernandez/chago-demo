@@ -7,12 +7,13 @@ import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
 
 export const reportService = {
-  // Get filtered transactions for reports
+  // Get filtered transactions for reports with pending carryover
   async getFilteredTransactions(filters) {
     try {
       let transactions = [];
       
       if (filters.startDate && filters.endDate) {
+        // Get transactions for the selected period
         transactions = await transactionService.getByDateRange(
           filters.startDate, 
           filters.endDate,
@@ -22,6 +23,34 @@ export const reportService = {
             conceptId: filters.conceptId
           }
         );
+
+        // Get all pending transactions from before the start date
+        const allTransactions = await transactionService.getAll({
+          type: 'salida', // Only expenses can be pending
+          status: 'pendiente'
+        });
+
+        // Filter pending transactions that are from before the selected period
+        const pendingFromPrevious = allTransactions.filter(transaction => {
+          const transactionDate = transaction.date?.toDate ? transaction.date.toDate() : new Date(transaction.date);
+          const startDate = new Date(filters.startDate);
+          
+          return transactionDate < startDate && transaction.status === 'pendiente';
+        });
+
+        // Add pending transactions to the current period report
+        transactions = [...transactions, ...pendingFromPrevious];
+        
+        // Remove duplicates (in case a pending transaction is already in the period)
+        const uniqueTransactions = transactions.reduce((acc, current) => {
+          const exists = acc.find(item => item.id === current.id);
+          if (!exists) {
+            acc.push(current);
+          }
+          return acc;
+        }, []);
+        
+        transactions = uniqueTransactions;
       } else {
         transactions = await transactionService.getAll({
           type: filters.type,
@@ -37,8 +66,8 @@ export const reportService = {
     }
   },
 
-  // Generate report statistics
-  async generateReportStats(transactions) {
+  // Generate report statistics with carryover balance
+  async generateReportStats(transactions, filters = {}) {
     try {
       const stats = {
         totalTransactions: transactions.length,
@@ -49,10 +78,12 @@ export const reportService = {
         salidasCount: 0,
         averageEntrada: 0,
         averageSalida: 0,
+        carryoverBalance: 0, // Balance arrastrado de meses anteriores
+        currentPeriodBalance: 0, // Balance del período actual
         paymentStatus: {
-          pendiente: { count: 0, amount: 0 },
-          parcial: { count: 0, amount: 0 },
-          pagado: { count: 0, amount: 0 }
+          pendiente: { count: 0, amount: 0, carryover: 0 },
+          parcial: { count: 0, amount: 0, carryover: 0 },
+          pagado: { count: 0, amount: 0, carryover: 0 }
         },
         conceptBreakdown: {},
         providerBreakdown: {},
@@ -81,27 +112,48 @@ export const reportService = {
         descriptionMap[description.id] = description.name;
       });
 
+      // Determine if we're filtering by date range
+      const hasDateFilter = filters.startDate && filters.endDate;
+      const startDate = hasDateFilter ? new Date(filters.startDate) : null;
+      const endDate = hasDateFilter ? new Date(filters.endDate) : null;
+
       // Process transactions
       transactions.forEach(transaction => {
         const amount = transaction.amount || 0;
         const conceptName = conceptMap[transaction.conceptId] || 'Sin concepto';
         const providerName = providerMap[transaction.providerId] || 'Sin proveedor';
-        const month = new Date(transaction.date?.toDate ? transaction.date.toDate() : transaction.date)
-          .toLocaleDateString('es-ES', { month: 'short', year: 'numeric' });
+        const transactionDate = transaction.date?.toDate ? transaction.date.toDate() : new Date(transaction.date);
+        const month = transactionDate.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' });
+
+        // Determine if this transaction is from the current period or carried over
+        const isCarryover = hasDateFilter && transactionDate < startDate && transaction.status === 'pendiente';
 
         // Basic stats
         if (transaction.type === 'entrada') {
-          stats.totalEntradas += amount;
-          stats.entradasCount++;
+          if (!isCarryover) {
+            stats.totalEntradas += amount;
+            stats.entradasCount++;
+            stats.currentPeriodBalance += amount;
+          }
         } else if (transaction.type === 'salida') {
-          stats.totalSalidas += amount;
-          stats.salidasCount++;
+          if (!isCarryover) {
+            stats.totalSalidas += amount;
+            stats.salidasCount++;
+            stats.currentPeriodBalance -= amount;
+          } else {
+            // This is a carryover pending transaction
+            stats.carryoverBalance -= (transaction.balance || amount);
+          }
           
           // Payment status (only for salidas)
           const status = transaction.status || 'pendiente';
           if (stats.paymentStatus[status]) {
             stats.paymentStatus[status].count++;
-            stats.paymentStatus[status].amount += transaction.balance || amount;
+            if (isCarryover) {
+              stats.paymentStatus[status].carryover += transaction.balance || amount;
+            } else {
+              stats.paymentStatus[status].amount += transaction.balance || amount;
+            }
           }
         }
 
@@ -159,7 +211,7 @@ export const reportService = {
       });
 
       // Calculate derived stats
-      stats.totalBalance = stats.totalEntradas - stats.totalSalidas;
+      stats.totalBalance = stats.currentPeriodBalance + stats.carryoverBalance;
       stats.averageEntrada = stats.entradasCount > 0 ? stats.totalEntradas / stats.entradasCount : 0;
       stats.averageSalida = stats.salidasCount > 0 ? stats.totalSalidas / stats.salidasCount : 0;
 

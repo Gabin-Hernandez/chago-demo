@@ -87,7 +87,7 @@ const Reportes = () => {
       const transactionsData =
         await reportService.getFilteredTransactions(filterData);
       const statsData =
-        await reportService.generateReportStats(transactionsData);
+        await reportService.generateReportStats(transactionsData, filterData);
 
       setTransactions(transactionsData);
       setStats(statsData);
@@ -298,76 +298,114 @@ const Reportes = () => {
 
         {/* Statistics Summary */}
         {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="bg-background rounded-lg border border-border p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">
-                    Total Ingreso
-                  </h3>
-                  <p className="text-2xl font-bold text-green-600">
-                    {formatCurrency(stats.totalEntradas)}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {stats.entradasCount} transacciones
-                  </p>
+          <div className="space-y-6">
+            {/* Current Period Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="bg-background rounded-lg border border-border p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground">
+                      Total Ingreso
+                    </h3>
+                    <p className="text-2xl font-bold text-green-600">
+                      {formatCurrency(stats.totalEntradas)}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {stats.entradasCount} transacciones
+                    </p>
+                  </div>
+                  <CurrencyDollarIcon className="h-8 w-8 text-green-600" />
                 </div>
-                <CurrencyDollarIcon className="h-8 w-8 text-green-600" />
+              </div>
+
+              <div className="bg-background rounded-lg border border-border p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground">
+                      Total Gasto
+                    </h3>
+                    <p className="text-2xl font-bold text-red-600">
+                      {formatCurrency(stats.totalSalidas)}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {stats.salidasCount} transacciones
+                    </p>
+                  </div>
+                  <CurrencyDollarIcon className="h-8 w-8 text-red-600" />
+                </div>
+              </div>
+
+              <div className="bg-background rounded-lg border border-border p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground">
+                      Balance Total
+                    </h3>
+                    <p
+                      className={`text-2xl font-bold ${stats.totalBalance >= 0 ? "text-green-600" : "text-red-600"}`}
+                    >
+                      {formatCurrency(stats.totalBalance)}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Incluye arrastre
+                    </p>
+                  </div>
+                  <ChartBarIcon
+                    className={`h-8 w-8 ${stats.totalBalance >= 0 ? "text-green-600" : "text-red-600"}`}
+                  />
+                </div>
+              </div>
+
+              <div className="bg-background rounded-lg border border-border p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground">
+                      Total Transacciones
+                    </h3>
+                    <p className="text-2xl font-bold text-primary">
+                      {stats.totalTransactions}
+                    </p>
+                    <p className="text-sm text-muted-foreground">En el período</p>
+                  </div>
+                  <DocumentTextIcon className="h-8 w-8 text-primary" />
+                </div>
               </div>
             </div>
 
-            <div className="bg-background rounded-lg border border-border p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">
-                    Total Gasto
-                  </h3>
-                  <p className="text-2xl font-bold text-red-600">
-                    {formatCurrency(stats.totalSalidas)}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {stats.salidasCount} transacciones
-                  </p>
-                </div>
-                <CurrencyDollarIcon className="h-8 w-8 text-red-600" />
-              </div>
-            </div>
+            {/* Balance Breakdown */}
+            {(stats.carryoverBalance !== 0 || stats.currentPeriodBalance !== 0) && (
+              <div className="bg-background rounded-lg border border-border p-6">
+                <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center">
+                  <ChartBarIcon className="h-5 w-5 mr-2" />
+                  Desglose de Balance
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h4 className="font-medium text-blue-800">Balance del Período</h4>
+                    <p className={`text-2xl font-bold ${stats.currentPeriodBalance >= 0 ? "text-green-600" : "text-red-600"}`}>
+                      {formatCurrency(stats.currentPeriodBalance)}
+                    </p>
+                    <p className="text-sm text-blue-600">Solo transacciones actuales</p>
+                  </div>
 
-            <div className="bg-background rounded-lg border border-border p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">
-                    Balance
-                  </h3>
-                  <p
-                    className={`text-2xl font-bold ${stats.totalBalance >= 0 ? "text-green-600" : "text-red-600"}`}
-                  >
-                    {formatCurrency(stats.totalBalance)}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Diferencia neta
-                  </p>
-                </div>
-                <ChartBarIcon
-                  className={`h-8 w-8 ${stats.totalBalance >= 0 ? "text-green-600" : "text-red-600"}`}
-                />
-              </div>
-            </div>
+                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                    <h4 className="font-medium text-orange-800">Balance Arrastrado</h4>
+                    <p className={`text-2xl font-bold ${stats.carryoverBalance >= 0 ? "text-green-600" : "text-red-600"}`}>
+                      {formatCurrency(stats.carryoverBalance)}
+                    </p>
+                    <p className="text-sm text-orange-600">Pendientes anteriores</p>
+                  </div>
 
-            <div className="bg-background rounded-lg border border-border p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">
-                    Total Transacciones
-                  </h3>
-                  <p className="text-2xl font-bold text-primary">
-                    {stats.totalTransactions}
-                  </p>
-                  <p className="text-sm text-muted-foreground">En el período</p>
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <h4 className="font-medium text-gray-800">Balance Total</h4>
+                    <p className={`text-2xl font-bold ${stats.totalBalance >= 0 ? "text-green-600" : "text-red-600"}`}>
+                      {formatCurrency(stats.totalBalance)}
+                    </p>
+                    <p className="text-sm text-gray-600">Período + Arrastre</p>
+                  </div>
                 </div>
-                <DocumentTextIcon className="h-8 w-8 text-primary" />
               </div>
-            </div>
+            )}
           </div>
         )}
 
@@ -393,7 +431,7 @@ const Reportes = () => {
                           ...prev,
                           paymentStatus: {
                             ...prev.paymentStatus,
-                            pagado: { count: 0, amount: 0 }
+                            pagado: { count: 0, amount: 0, carryover: 0 }
                           }
                         }));
                         success('Contador de pagados reiniciado');
@@ -406,9 +444,16 @@ const Reportes = () => {
                 <p className="text-2xl font-bold text-green-600">
                   {stats.paymentStatus.pagado.count}
                 </p>
-                <p className="text-sm text-green-600">
-                  {formatCurrency(stats.paymentStatus.pagado.amount)}
-                </p>
+                <div className="space-y-1">
+                  <p className="text-sm text-green-600">
+                    Período: {formatCurrency(stats.paymentStatus.pagado.amount)}
+                  </p>
+                  {stats.paymentStatus.pagado.carryover > 0 && (
+                    <p className="text-xs text-green-500">
+                      Arrastre: {formatCurrency(stats.paymentStatus.pagado.carryover)}
+                    </p>
+                  )}
+                </div>
               </div>
 
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
@@ -416,9 +461,16 @@ const Reportes = () => {
                 <p className="text-2xl font-bold text-yellow-600">
                   {stats.paymentStatus.parcial.count}
                 </p>
-                <p className="text-sm text-yellow-600">
-                  {formatCurrency(stats.paymentStatus.parcial.amount)}
-                </p>
+                <div className="space-y-1">
+                  <p className="text-sm text-yellow-600">
+                    Período: {formatCurrency(stats.paymentStatus.parcial.amount)}
+                  </p>
+                  {stats.paymentStatus.parcial.carryover > 0 && (
+                    <p className="text-xs text-yellow-500">
+                      Arrastre: {formatCurrency(stats.paymentStatus.parcial.carryover)}
+                    </p>
+                  )}
+                </div>
               </div>
 
               <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -434,7 +486,7 @@ const Reportes = () => {
                           ...prev,
                           paymentStatus: {
                             ...prev.paymentStatus,
-                            pendiente: { count: 0, amount: 0 }
+                            pendiente: { count: 0, amount: 0, carryover: 0 }
                           }
                         }));
                         success('Contador de pendientes reiniciado');
@@ -447,9 +499,16 @@ const Reportes = () => {
                 <p className="text-2xl font-bold text-red-600">
                   {stats.paymentStatus.pendiente.count}
                 </p>
-                <p className="text-sm text-red-600">
-                  {formatCurrency(stats.paymentStatus.pendiente.amount)}
-                </p>
+                <div className="space-y-1">
+                  <p className="text-sm text-red-600">
+                    Período: {formatCurrency(stats.paymentStatus.pendiente.amount)}
+                  </p>
+                  {stats.paymentStatus.pendiente.carryover > 0 && (
+                    <p className="text-xs text-red-500">
+                      Arrastre: {formatCurrency(stats.paymentStatus.pendiente.carryover)}
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
           </div>
