@@ -8,7 +8,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { useToast } from "../../../components/ui/Toast";
 import { transactionService } from "../../../lib/services/transactionService";
 import { conceptService } from "../../../lib/services/conceptService";
-import { providerService } from "../../../lib/services/providerService";
+
 import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
 
 const Ingresos = () => {
@@ -17,7 +17,7 @@ const Ingresos = () => {
   const [showForm, setShowForm] = useState(false);
   const [transactions, setTransactions] = useState([]);
   const [concepts, setConcepts] = useState([]);
-  const [providers, setProviders] = useState([]);
+
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -45,16 +45,14 @@ const Ingresos = () => {
         endDate: endOfMonth
       };
 
-      const [transactionsData, conceptsData, providersData] = await Promise.all(
+      const [transactionsData, conceptsData] = await Promise.all(
         [
           transactionService.getAll(transactionQuery),
           conceptService.getAll(),
-          providerService.getAll(),
         ]
       );
       setTransactions(transactionsData);
       setConcepts(conceptsData);
-      setProviders(providersData);
     } catch (error) {
       console.error("Error loading transactions:", error);
       toast.error("Error al cargar las transacciones");
@@ -141,11 +139,7 @@ const Ingresos = () => {
     return concept ? concept.name : "N/A";
   };
 
-  const getProviderName = (providerId) => {
-    if (!providerId) return "N/A";
-    const provider = providers.find((p) => p.id === providerId);
-    return provider ? provider.name : "N/A";
-  };
+
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("es-MX", {
@@ -196,12 +190,10 @@ const Ingresos = () => {
     if (searchTerm) {
       const query = searchTerm.toLowerCase();
       const conceptName = getConceptName(transaction.conceptId).toLowerCase();
-      const providerName = getProviderName(transaction.providerId).toLowerCase();
       const amountStr = (transaction.amount ?? "").toString();
       const statusStr = (transaction.status ?? "").toString().toLowerCase();
       return (
         conceptName.includes(query) ||
-        providerName.includes(query) ||
         amountStr.includes(query) ||
         statusStr.includes(query)
       );
@@ -424,7 +416,7 @@ const Ingresos = () => {
                           type="text"
                           value={searchTerm}
                           onChange={(e) => setSearchTerm(e.target.value)}
-                          placeholder="Buscar por concepto, proveedor, monto o estado..."
+                          placeholder="Buscar por concepto, monto o estado..."
                           className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
                         />
                         <svg
@@ -483,9 +475,6 @@ const Ingresos = () => {
                             Concepto
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                            Proveedor
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                             Monto
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -513,9 +502,6 @@ const Ingresos = () => {
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
                                 {getConceptName(transaction.conceptId)}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
-                                {getProviderName(transaction.providerId)}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
                                 {formatCurrency(transaction.amount)}
@@ -559,9 +545,6 @@ const Ingresos = () => {
                             </div>
                             <p className="text-sm font-medium text-foreground">
                               {getConceptName(transaction.conceptId)}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              {getProviderName(transaction.providerId)}
                             </p>
                           </div>
                           <div className="text-right">
