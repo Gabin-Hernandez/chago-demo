@@ -97,10 +97,17 @@ export const transactionService = {
         q = query(q, where("division", "==", filters.division));
       }
 
-      // Apply ordering
-      q = query(q, orderBy("createdAt", "desc"));
+      // Handle date filtering - need to combine both conditions properly
+      if (filters.startDate && filters.endDate) {
+        // Use date range filtering with proper ordering
+        q = query(q, where("date", ">=", filters.startDate), where("date", "<=", filters.endDate));
+        q = query(q, orderBy("date", "desc"));
+      } else {
+        // Apply ordering by createdAt when no date filters
+        q = query(q, orderBy("createdAt", "desc"));
+      }
 
-      // Apply pagination
+      // Apply pagination after ordering
       if (filters.limit) {
         q = query(q, limit(filters.limit));
       }
@@ -115,20 +122,46 @@ export const transactionService = {
       querySnapshot.forEach((doc) => {
         transactions.push({ id: doc.id, ...doc.data() });
       });
-      
-      // Filtrar por fecha después de obtener los resultados
-      if (filters.startDate && filters.endDate) {
-        transactions = transactions.filter(transaction => {
-          if (!transaction.date) return false;
-          const transactionDate = transaction.date.toDate ? transaction.date.toDate() : new Date(transaction.date);
-          return transactionDate >= filters.startDate && transactionDate <= filters.endDate;
-        });
-      }
 
       return transactions;
     } catch (error) {
       console.error("Error getting transactions:", error);
-      throw new Error("Error al obtener las transacciones");
+      // Fallback to original method if date filtering fails
+      try {
+        let fallbackQ = collection(db, COLLECTION_NAME);
+
+        // Apply basic filters without date filtering
+        if (filters.type) {
+          fallbackQ = query(fallbackQ, where("type", "==", filters.type));
+        }
+
+        fallbackQ = query(fallbackQ, orderBy("createdAt", "desc"));
+
+        if (filters.limit) {
+          fallbackQ = query(fallbackQ, limit(filters.limit * 3)); // Get more to filter later
+        }
+
+        const fallbackSnapshot = await getDocs(fallbackQ);
+        let fallbackTransactions = [];
+
+        fallbackSnapshot.forEach((doc) => {
+          fallbackTransactions.push({ id: doc.id, ...doc.data() });
+        });
+
+        // Apply date filtering after getting results
+        if (filters.startDate && filters.endDate) {
+          fallbackTransactions = fallbackTransactions.filter(transaction => {
+            if (!transaction.date) return false;
+            const transactionDate = transaction.date.toDate ? transaction.date.toDate() : new Date(transaction.date);
+            return transactionDate >= filters.startDate && transactionDate <= filters.endDate;
+          });
+        }
+
+        return fallbackTransactions;
+      } catch (fallbackError) {
+        console.error("Fallback query also failed:", fallbackError);
+        throw new Error("Error al obtener las transacciones");
+      }
     }
   },
 
@@ -261,6 +294,96 @@ export const transactionService = {
     } catch (error) {
       console.error("Error getting transactions by date range:", error);
       throw new Error("Error al obtener transacciones por rango de fechas");
+    }
+  },
+
+  // Delete all transactions from a specific month (DEV ONLY)
+  async deleteTransactionsByMonth(year, month, user, onProgress = null) {
+    try {
+      // Only allow in development environment
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error("Esta función solo está disponible en desarrollo");
+      }
+
+      const startDate = new Date(year, month, 1);
+      const endDate = new Date(year, month + 1, 0, 23, 59, 59, 999);
+
+      console.log(`🗑️ Deleting transactions from ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`);
+
+      // Get all transactions in the month
+      const transactions = await this.getByDateRange(startDate, endDate);
+      
+      console.log(`Found ${transactions.length} transactions to delete`);
+
+      // Notify initial progress
+      if (onProgress) {
+        onProgress(0, transactions.length);
+      }
+
+      let deletedCount = 0;
+      const errors = [];
+
+      // Delete each transaction
+      for (let i = 0; i < transactions.length; i++) {
+        const transaction = transactions[i];
+        try {
+          await this.delete(transaction.id, user);
+          deletedCount++;
+          console.log(`Deleted transaction ${transaction.id} - ${transaction.description}`);
+          
+          // Update progress
+          if (onProgress) {
+            onProgress(deletedCount, transactions.length);
+          }
+        } catch (error) {
+          console.error(`Error deleting transaction ${transaction.id}:`, error);
+          errors.push(`Error deleting transaction ${transaction.id}: ${error.message}`);
+          
+          // Still update progress even on error
+          if (onProgress) {
+            onProgress(deletedCount, transactions.length);
+          }
+        }
+      }
+
+      // Log the bulk deletion
+      if (user) {
+        await logService.log({
+          level: 'warn',
+          action: 'BULK_DELETE_TRANSACTIONS',
+          userId: user.uid,
+          userEmail: user.email,
+          details: {
+            year,
+            month,
+            monthName: new Date(year, month, 1).toLocaleDateString('es-ES', { month: 'long' }),
+            deletedCount,
+            totalFound: transactions.length,
+            errors: errors.length
+          },
+          metadata: {
+            timestamp: new Date().toISOString(),
+            environment: process.env.NODE_ENV
+          }
+        });
+      }
+
+      const result = {
+        deletedCount,
+        totalFound: transactions.length,
+        errors
+      };
+
+      console.log(`🗑️ Deletion completed: ${deletedCount}/${transactions.length} transactions deleted`);
+      
+      if (errors.length > 0) {
+        console.warn(`⚠️ ${errors.length} errors occurred during deletion:`, errors);
+      }
+
+      return result;
+    } catch (error) {
+      console.error("Error deleting transactions by month:", error);
+      throw new Error(`Error al eliminar transacciones del mes: ${error.message}`);
     }
   },
 };

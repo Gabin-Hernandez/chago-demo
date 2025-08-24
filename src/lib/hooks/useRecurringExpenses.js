@@ -23,20 +23,20 @@ export const useRecurringExpenses = () => {
     loadRecurringExpenses();
   }, []);
 
-  // Check if there are expenses that need to be generated for next month
+  // Check if there are expenses that need to be generated for current month
   const checkPendingGeneration = () => {
     const now = new Date();
-    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const currentMonthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth()).padStart(2, '0')}`; // Format: YYYY-MM
     
     return recurringExpenses.filter(expense => {
       if (!expense.isActive) return false;
       
-      const lastGenerated = expense.lastGenerated?.toDate();
+      // Initialize generatedMonths array if it doesn't exist (for backward compatibility)
+      const generatedMonths = expense.generatedMonths || [];
       
-      // If never generated, or last generated is not for next month
-      return !lastGenerated || 
-        lastGenerated.getMonth() !== nextMonth.getMonth() || 
-        lastGenerated.getFullYear() !== nextMonth.getFullYear();
+      // Check if we already generated for current month using the generatedMonths array
+      return !generatedMonths.includes(currentMonthKey);
     });
   };
 

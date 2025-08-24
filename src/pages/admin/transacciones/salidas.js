@@ -3,19 +3,17 @@ import { useRouter } from "next/router";
 import AdminLayout from "../../../components/layout/AdminLayout";
 import TransactionForm from "../../../components/forms/TransactionForm";
 import ProtectedRoute from "../../../components/auth/ProtectedRoute";
+import AdvancedDateSelector from "../../../components/dashboard/AdvancedDateSelector";
 import { useAuth } from "../../../context/AuthContext";
 import { useToast } from "../../../components/ui/Toast";
 import { transactionService } from "../../../lib/services/transactionService";
 import { conceptService } from "../../../lib/services/conceptService";
 import { providerService } from "../../../lib/services/providerService";
-import { useRecurringExpenses } from "../../../lib/hooks/useRecurringExpenses";
 import Link from "next/link";
-import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
 
 const SolicitudesPago = () => {
   const router = useRouter();
   const { checkPermission } = useAuth();
-  const { hasPendingGeneration, pendingExpenses } = useRecurringExpenses();
   const [showForm, setShowForm] = useState(false);
   const [transactions, setTransactions] = useState([]);
   const [concepts, setConcepts] = useState([]);
@@ -24,8 +22,8 @@ const SolicitudesPago = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentDate, setCurrentDate] = useState(new Date());
   const [currentMonthName, setCurrentMonthName] = useState("");
-  const [showMonthDropdown, setShowMonthDropdown] = useState(false);
-  const monthDropdownRef = useRef(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(20);
   const toast = useToast();
 
   // Check permissions based on user role
@@ -42,7 +40,7 @@ const SolicitudesPago = () => {
 
       const transactionQuery = { 
         type: "salida", 
-        limit: 10,
+        limit: 1000, // Aumentamos el límite para traer más datos y paginar en el frontend
         startDate: startOfMonth,
         endDate: endOfMonth
       };
@@ -54,6 +52,13 @@ const SolicitudesPago = () => {
           providerService.getAll(),
         ]
       );
+      
+      console.log('Transacciones cargadas:', {
+        query: transactionQuery,
+        resultCount: transactionsData.length,
+        transactions: transactionsData
+      });
+      
       setTransactions(transactionsData);
       setConcepts(conceptsData);
       setProviders(providersData);
@@ -69,58 +74,15 @@ const SolicitudesPago = () => {
     loadTransactions();
     updateMonthName();
   }, [loadTransactions, currentDate]);
-  
-  useEffect(() => {
-    // Close dropdown when clicking outside
-    const handleClickOutside = (event) => {
-      if (monthDropdownRef.current && !monthDropdownRef.current.contains(event.target)) {
-        setShowMonthDropdown(false);
-      }
-    };
-    
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   const updateMonthName = () => {
     const monthName = currentDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
     setCurrentMonthName(monthName.charAt(0).toUpperCase() + monthName.slice(1));
   };
-  
-  const navigateMonth = (direction) => {
-    const newDate = new Date(currentDate);
-    if (direction === 'prev') {
-      newDate.setMonth(newDate.getMonth() - 1);
-    } else if (direction === 'next') {
-      newDate.setMonth(newDate.getMonth() + 1);
-    } else {
-      newDate.setMonth(new Date().getMonth());
-      newDate.setFullYear(new Date().getFullYear());
-    }
+
+  const handleDateChange = (newDate) => {
     setCurrentDate(newDate);
-    setShowMonthDropdown(false);
-  };
-  
-  const selectMonth = (monthIndex) => {
-    const newDate = new Date(currentDate);
-    newDate.setMonth(monthIndex);
-    setCurrentDate(newDate);
-    setShowMonthDropdown(false);
-  };
-  
-  const getMonthsList = () => {
-    const months = [];
-    const currentYear = currentDate.getFullYear();
-    
-    for (let i = 0; i < 12; i++) {
-      const date = new Date(currentYear, i, 1);
-      months.push({
-        index: i,
-        name: date.toLocaleDateString('es-ES', { month: 'long' })
-      });
-    }
-    
-    return months;
+    setCurrentPage(1); // Reset to first page when date changes
   };
 
   const handleTransactionSuccess = (transaction) => {
@@ -248,6 +210,27 @@ const SolicitudesPago = () => {
     return true;
   });
 
+  // Sort transactions by status priority
+  const sortedTransactions = filteredTransactions.sort((a, b) => {
+    const statusOrder = { pendiente: 1, parcial: 2, pagado: 3 };
+    return statusOrder[a.status] - statusOrder[b.status];
+  });
+
+  // Calculate pagination
+  const totalPages = Math.ceil(sortedTransactions.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentTransactions = sortedTransactions.slice(startIndex, endIndex);
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+    setCurrentPage(1); // Reset to first page when searching
+  };
+
   return (
     <ProtectedRoute>
       <AdminLayout
@@ -283,58 +266,12 @@ const SolicitudesPago = () => {
                     <h1 className="text-2xl font-bold text-gray-900">
                       Gasto - {currentMonthName}
                     </h1>
-                    <div className="flex items-center space-x-1">
-                      <button
-                        onClick={() => navigateMonth('prev')}
-                        className="p-1 rounded-full hover:bg-gray-200 transition-colors"
-                        aria-label="Mes anterior"
-                      >
-                        <ChevronLeftIcon className="h-5 w-5 text-gray-600" />
-                      </button>
-                      <div className="relative" ref={monthDropdownRef}>
-                        <button
-                          onClick={() => setShowMonthDropdown(!showMonthDropdown)}
-                          className="p-1 rounded-full hover:bg-gray-200 transition-colors flex items-center"
-                          aria-label="Seleccionar mes"
-                        >
-                          <span className="text-xs font-medium text-gray-600 flex items-center">
-                            {currentDate.getMonth() === new Date().getMonth() && currentDate.getFullYear() === new Date().getFullYear() 
-                              ? "Mes Actual" 
-                              : currentDate.toLocaleDateString('es-ES', { month: 'long' }).charAt(0).toUpperCase() + 
-                                currentDate.toLocaleDateString('es-ES', { month: 'long' }).slice(1)}
-                            <ChevronDownIcon className="h-3 w-3 ml-1" />
-                          </span>
-                        </button>
-                        
-                        {showMonthDropdown && (
-                          <div className="absolute z-10 mt-1 w-40 bg-white rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5 focus:outline-none">
-                            <button
-                              onClick={() => navigateMonth('current')}
-                              className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                            >
-                              Mes Actual
-                            </button>
-                            <div className="border-t border-gray-100 my-1"></div>
-                            {getMonthsList().map((month) => (
-                              <button
-                                key={month.index}
-                                onClick={() => selectMonth(month.index)}
-                                className={`block w-full text-left px-4 py-2 text-sm ${currentDate.getMonth() === month.index ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-100'}`}
-                              >
-                                {month.name.charAt(0).toUpperCase() + month.name.slice(1)}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => navigateMonth('next')}
-                        className="p-1 rounded-full hover:bg-gray-200 transition-colors"
-                        aria-label="Mes siguiente"
-                      >
-                        <ChevronRightIcon className="h-5 w-5 text-gray-600" />
-                      </button>
-                    </div>
+                    <AdvancedDateSelector
+                      currentDate={currentDate}
+                      onDateChange={handleDateChange}
+                      onSuccess={toast.success}
+                      onError={toast.error}
+                    />
                   </div>
                   <p className="text-gray-600 mt-1">
                     Gestiona y realiza seguimiento de todos los gastos de la organización
@@ -358,33 +295,7 @@ const SolicitudesPago = () => {
                 </div>
               </div>
               {!showForm && canManageTransactions && (
-                <div className="flex flex-col sm:flex-row gap-3">
-                  {/* Botón Gastos Recurrentes */}
-                  <button
-                    onClick={() => router.push('/admin/transacciones/recurrentes')}
-                    className="px-6 py-3 bg-rose-400 text-white rounded-xl hover:bg-rose-500 focus:ring-4 focus:ring-rose-400/20 focus:ring-offset-2 flex items-center justify-center transition-all duration-200 shadow-lg hover:shadow-xl font-medium relative"
-                  >
-                    <svg
-                      className="w-5 h-5 mr-2"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                      />
-                    </svg>
-                    Gastos Recurrentes
-                    {hasPendingGeneration && pendingExpenses.length > 0 && (
-                      <span className="absolute -top-2 -right-2 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-600 rounded-full">
-                        {pendingExpenses.length}
-                      </span>
-                    )}
-                  </button>
-                  
+                <div className="flex flex-col sm:flex-row gap-3">                  
                   {/* Botón Nuevo Gasto */}
                   <button
                     onClick={handleNewTransaction}
@@ -496,8 +407,7 @@ const SolicitudesPago = () => {
                         Gastos Recientes
                       </h3>
                       <p className="text-sm text-gray-600">
-                        Últimas {Math.min(filteredTransactions.length, 10)}{" "}
-                        gastos registrados
+                        {startIndex + 1}-{Math.min(endIndex, sortedTransactions.length)} de {sortedTransactions.length} gastos
                       </p>
                     </div>
                   </div>
@@ -505,7 +415,7 @@ const SolicitudesPago = () => {
                     <div className="flex items-center space-x-2">
                       <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
                         {
-                          filteredTransactions.filter(
+                          sortedTransactions.filter(
                             (t) => t.status === "pendiente"
                           ).length
                         }{" "}
@@ -513,7 +423,7 @@ const SolicitudesPago = () => {
                       </span>
                       <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                         {
-                          filteredTransactions.filter(
+                          sortedTransactions.filter(
                             (t) => t.status === "parcial"
                           ).length
                         }{" "}
@@ -521,7 +431,7 @@ const SolicitudesPago = () => {
                       </span>
                       <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                         {
-                          filteredTransactions.filter(
+                          sortedTransactions.filter(
                             (t) => t.status === "pagado"
                           ).length
                         }{" "}
@@ -533,7 +443,7 @@ const SolicitudesPago = () => {
                         <input
                           type="text"
                           value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
+                          onChange={handleSearchChange}
                           placeholder="Buscar por concepto, proveedor, monto o estado..."
                           className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
                         />
@@ -594,35 +504,11 @@ const SolicitudesPago = () => {
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">
                       No hay gastos registrados este mes
                     </h3>
-                    <p className="text-gray-600 mb-4">
+                    <p className="text-gray-600 mb-6">
                       Comienza creando tu primer gasto para gestionar los gastos de tu organización
                     </p>
                     
-                    {/* Información sobre gastos recurrentes */}
-                    {hasPendingGeneration && pendingExpenses.length > 0 && (
-                      <div className="bg-rose-50 border border-rose-200 rounded-lg p-4 mb-6">
-                        <div className="flex items-center justify-center mb-2">
-                          <svg className="w-5 h-5 text-rose-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                          </svg>
-                          <h4 className="text-sm font-semibold text-rose-700">
-                            Gastos Recurrentes Pendientes
-                          </h4>
-                        </div>
-                        <p className="text-sm text-rose-600 mb-3">
-                          Tienes <span className="font-semibold">{pendingExpenses.length}</span> gastos recurrentes 
-                          que se generarán automáticamente el próximo mes
-                        </p>
-                        <button
-                          onClick={() => router.push('/admin/transacciones/recurrentes')}
-                          className="text-sm text-rose-500 hover:text-rose-600 font-medium underline"
-                        >
-                          Ver gastos recurrentes →
-                        </button>
-                      </div>
-                    )}
-                    
-                    <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                    <div className="flex justify-center">
                       <button
                         onClick={handleNewTransaction}
                         className="inline-flex items-center px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 focus:ring-4 focus:ring-red-500/20 transition-all duration-200 font-medium shadow-lg"
@@ -642,18 +528,6 @@ const SolicitudesPago = () => {
                         </svg>
                         Crear primer gasto
                       </button>
-                      
-                      {hasPendingGeneration && (
-                        <button
-                          onClick={() => router.push('/admin/transacciones/recurrentes')}
-                          className="inline-flex items-center px-6 py-3 bg-rose-400 text-white rounded-xl hover:bg-rose-500 focus:ring-4 focus:ring-rose-400/20 transition-all duration-200 font-medium shadow-lg"
-                        >
-                          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                          </svg>
-                          Gestionar recurrentes
-                        </button>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -680,18 +554,15 @@ const SolicitudesPago = () => {
                             Estado
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                            Tipo
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                             Acciones
                           </th>
                         </tr>
                       </thead>
                       <tbody className="bg-background divide-y divide-border">
-                        {filteredTransactions
-                          .sort((a, b) => {
-                            const statusOrder = { pendiente: 1, parcial: 2, pagado: 3 };
-                            return statusOrder[a.status] - statusOrder[b.status];
-                          })
-                          .slice(0, 10)
-                          .map((transaction) => (
+                        {currentTransactions.map((transaction) => (
                             <tr
                               key={transaction.id}
                               className="hover:bg-muted/50"
@@ -711,6 +582,23 @@ const SolicitudesPago = () => {
                               <td className="px-6 py-4 whitespace-nowrap">
                                 {getStatusBadge(transaction.status)}
                               </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                {transaction.isRecurring ? (
+                                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
+                                    <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                    </svg>
+                                    Recurrente
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                    <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                    </svg>
+                                    Manual
+                                  </span>
+                                )}
+                              </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                 <button
                                   onClick={() =>
@@ -729,20 +617,22 @@ const SolicitudesPago = () => {
 
                   {/* Mobile Cards */}
                   <div className="md:hidden divide-y divide-border">
-                    {filteredTransactions
-                      .sort((a, b) => {
-                        const statusOrder = { pendiente: 1, parcial: 2, pagado: 3 };
-                        return statusOrder[a.status] - statusOrder[b.status];
-                      })
-                      .slice(0, 10)
-                      .map((transaction) => (
+                    {currentTransactions.map((transaction) => (
                       <div key={transaction.id} className="p-4">
                         <div className="flex justify-between items-start mb-2">
                           <div>
-                            <div className="flex items-center space-x-2 mb-1">
+                            <div className="flex items-center space-x-2 mb-1 flex-wrap">
                               <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
                                 Gasto
                               </span>
+                              {transaction.isRecurring && (
+                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                  <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                  </svg>
+                                  Recurrente
+                                </span>
+                              )}
                               {getStatusBadge(transaction.status)}
                             </div>
                             <p className="text-sm font-medium text-foreground">
@@ -773,17 +663,111 @@ const SolicitudesPago = () => {
                     ))}
                   </div>
 
-                  {filteredTransactions.length > 10 && (
-                    <div className="px-6 py-4 border-t border-border text-center">
-                      <p className="text-sm text-muted-foreground">
-                        Mostrando los 10 gastos más recientes.{" "}
-                        <Link
-                          href="/admin/transacciones/historial?type=salida"
-                          className="text-primary hover:text-primary/80"
-                        >
-                          Ver todos los gastos
-                        </Link>
-                      </p>
+                  {/* Pagination */}
+                  {totalPages > 1 && (
+                    <div className="px-6 py-4 border-t border-border">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 flex justify-between sm:hidden">
+                          <button
+                            onClick={() => handlePageChange(currentPage - 1)}
+                            disabled={currentPage === 1}
+                            className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            Anterior
+                          </button>
+                          <button
+                            onClick={() => handlePageChange(currentPage + 1)}
+                            disabled={currentPage === totalPages}
+                            className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            Siguiente
+                          </button>
+                        </div>
+                        <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                          <div>
+                            <p className="text-sm text-gray-700">
+                              Mostrando{" "}
+                              <span className="font-medium">{startIndex + 1}</span> a{" "}
+                              <span className="font-medium">
+                                {Math.min(endIndex, sortedTransactions.length)}
+                              </span>{" "}
+                              de{" "}
+                              <span className="font-medium">{sortedTransactions.length}</span>{" "}
+                              resultados
+                            </p>
+                          </div>
+                          <div>
+                            <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                              <button
+                                onClick={() => handlePageChange(currentPage - 1)}
+                                disabled={currentPage === 1}
+                                className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
+                                    clipRule="evenodd"
+                                  />
+                                </svg>
+                                <span className="sr-only">Anterior</span>
+                              </button>
+                              
+                              {/* Page numbers */}
+                              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                                // Show first page, last page, current page, and pages around current page
+                                if (
+                                  page === 1 ||
+                                  page === totalPages ||
+                                  Math.abs(page - currentPage) <= 1
+                                ) {
+                                  return (
+                                    <button
+                                      key={page}
+                                      onClick={() => handlePageChange(page)}
+                                      className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                                        page === currentPage
+                                          ? "z-10 bg-red-50 border-red-500 text-red-600"
+                                          : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
+                                      }`}
+                                    >
+                                      {page}
+                                    </button>
+                                  );
+                                } else if (
+                                  page === currentPage - 2 ||
+                                  page === currentPage + 2
+                                ) {
+                                  return (
+                                    <span
+                                      key={page}
+                                      className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700"
+                                    >
+                                      ...
+                                    </span>
+                                  );
+                                }
+                                return null;
+                              })}
+                              
+                              <button
+                                onClick={() => handlePageChange(currentPage + 1)}
+                                disabled={currentPage === totalPages}
+                                className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                <span className="sr-only">Siguiente</span>
+                                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                                    clipRule="evenodd"
+                                  />
+                                </svg>
+                              </button>
+                            </nav>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </>

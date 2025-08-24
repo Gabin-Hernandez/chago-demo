@@ -26,7 +26,10 @@ export default async function handler(req, res) {
       });
     }
 
-    // Generate pending transactions for this month
+    // First, run migration for existing expenses that don't have generatedMonths
+    await recurringExpenseService.migrateExistingExpenses();
+    
+    // Generate pending transactions for current month
     const generatedTransactions = await recurringExpenseService.generatePendingTransactions({
       uid: 'system-cron',
       email: 'system@santiago-fc.com'

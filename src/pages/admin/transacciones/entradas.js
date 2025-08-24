@@ -4,12 +4,11 @@ import Link from "next/link";
 import AdminLayout from "../../../components/layout/AdminLayout";
 import TransactionForm from "../../../components/forms/TransactionForm";
 import ProtectedRoute from "../../../components/auth/ProtectedRoute";
+import AdvancedDateSelector from "../../../components/dashboard/AdvancedDateSelector";
 import { useAuth } from "../../../context/AuthContext";
 import { useToast } from "../../../components/ui/Toast";
 import { transactionService } from "../../../lib/services/transactionService";
 import { conceptService } from "../../../lib/services/conceptService";
-
-import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
 
 const Ingresos = () => {
   const router = useRouter();
@@ -17,13 +16,10 @@ const Ingresos = () => {
   const [showForm, setShowForm] = useState(false);
   const [transactions, setTransactions] = useState([]);
   const [concepts, setConcepts] = useState([]);
-
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentDate, setCurrentDate] = useState(new Date());
   const [currentMonthName, setCurrentMonthName] = useState("");
-  const [showMonthDropdown, setShowMonthDropdown] = useState(false);
-  const monthDropdownRef = useRef(null);
   const toast = useToast();
 
   // Check permissions based on user role
@@ -65,58 +61,14 @@ const Ingresos = () => {
     loadTransactions();
     updateMonthName();
   }, [loadTransactions, currentDate]);
-  
-  useEffect(() => {
-    // Close dropdown when clicking outside
-    const handleClickOutside = (event) => {
-      if (monthDropdownRef.current && !monthDropdownRef.current.contains(event.target)) {
-        setShowMonthDropdown(false);
-      }
-    };
-    
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   const updateMonthName = () => {
     const monthName = currentDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
     setCurrentMonthName(monthName.charAt(0).toUpperCase() + monthName.slice(1));
   };
-  
-  const navigateMonth = (direction) => {
-    const newDate = new Date(currentDate);
-    if (direction === 'prev') {
-      newDate.setMonth(newDate.getMonth() - 1);
-    } else if (direction === 'next') {
-      newDate.setMonth(newDate.getMonth() + 1);
-    } else {
-      newDate.setMonth(new Date().getMonth());
-      newDate.setFullYear(new Date().getFullYear());
-    }
+
+  const handleDateChange = (newDate) => {
     setCurrentDate(newDate);
-    setShowMonthDropdown(false);
-  };
-  
-  const selectMonth = (monthIndex) => {
-    const newDate = new Date(currentDate);
-    newDate.setMonth(monthIndex);
-    setCurrentDate(newDate);
-    setShowMonthDropdown(false);
-  };
-  
-  const getMonthsList = () => {
-    const months = [];
-    const currentYear = currentDate.getFullYear();
-    
-    for (let i = 0; i < 12; i++) {
-      const date = new Date(currentYear, i, 1);
-      months.push({
-        index: i,
-        name: date.toLocaleDateString('es-ES', { month: 'long' })
-      });
-    }
-    
-    return months;
   };
 
   const handleTransactionSuccess = (transaction) => {
@@ -236,58 +188,12 @@ const Ingresos = () => {
                     <h1 className="text-2xl font-bold text-gray-900">
                       Ingreso - {currentMonthName}
                     </h1>
-                    <div className="flex items-center space-x-1">
-                      <button
-                        onClick={() => navigateMonth('prev')}
-                        className="p-1 rounded-full hover:bg-gray-200 transition-colors"
-                        aria-label="Mes anterior"
-                      >
-                        <ChevronLeftIcon className="h-5 w-5 text-gray-600" />
-                      </button>
-                      <div className="relative" ref={monthDropdownRef}>
-                        <button
-                          onClick={() => setShowMonthDropdown(!showMonthDropdown)}
-                          className="p-1 rounded-full hover:bg-gray-200 transition-colors flex items-center"
-                          aria-label="Seleccionar mes"
-                        >
-                          <span className="text-xs font-medium text-gray-600 flex items-center">
-                            {currentDate.getMonth() === new Date().getMonth() && currentDate.getFullYear() === new Date().getFullYear() 
-                              ? "Mes Actual" 
-                              : currentDate.toLocaleDateString('es-ES', { month: 'long' }).charAt(0).toUpperCase() + 
-                                currentDate.toLocaleDateString('es-ES', { month: 'long' }).slice(1)}
-                            <ChevronDownIcon className="h-3 w-3 ml-1" />
-                          </span>
-                        </button>
-                        
-                        {showMonthDropdown && (
-                          <div className="absolute z-10 mt-1 w-40 bg-white rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5 focus:outline-none">
-                            <button
-                              onClick={() => navigateMonth('current')}
-                              className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                            >
-                              Mes Actual
-                            </button>
-                            <div className="border-t border-gray-100 my-1"></div>
-                            {getMonthsList().map((month) => (
-                              <button
-                                key={month.index}
-                                onClick={() => selectMonth(month.index)}
-                                className={`block w-full text-left px-4 py-2 text-sm ${currentDate.getMonth() === month.index ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-100'}`}
-                              >
-                                {month.name.charAt(0).toUpperCase() + month.name.slice(1)}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => navigateMonth('next')}
-                        className="p-1 rounded-full hover:bg-gray-200 transition-colors"
-                        aria-label="Mes siguiente"
-                      >
-                        <ChevronRightIcon className="h-5 w-5 text-gray-600" />
-                      </button>
-                    </div>
+                    <AdvancedDateSelector
+                      currentDate={currentDate}
+                      onDateChange={handleDateChange}
+                      onSuccess={toast.success}
+                      onError={toast.error}
+                    />
                   </div>
                   <p className="text-gray-600 mt-1">
                     Registra y consulta los ingresos de la organización

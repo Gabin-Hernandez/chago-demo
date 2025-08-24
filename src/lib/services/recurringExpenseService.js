@@ -26,6 +26,7 @@ export const recurringExpenseService = {
         updatedAt: serverTimestamp(),
         isActive: true,
         lastGenerated: null,
+        generatedMonths: [], // Array to track months where transactions were generated
       });
 
       return { id: docRef.id, ...expenseData };
@@ -88,23 +89,26 @@ export const recurringExpenseService = {
     }
   },
 
-  // Generate pending transactions for the next month
+  // Generate pending transactions for the current month
   async generatePendingTransactions(user) {
     try {
       const activeExpenses = await this.getAll({ isActive: true });
       const now = new Date();
-      const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const currentMonthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth()).padStart(2, '0')}`; // Format: YYYY-MM
       const generatedTransactions = [];
 
-      for (const expense of activeExpenses) {
-        // Check if we already generated for next month
-        const lastGenerated = expense.lastGenerated?.toDate();
-        const shouldGenerate = !lastGenerated || 
-          lastGenerated.getMonth() !== nextMonth.getMonth() || 
-          lastGenerated.getFullYear() !== nextMonth.getFullYear();
+      console.log(`Checking recurring expenses for current month: ${currentMonthKey}`);
 
-        if (shouldGenerate) {
-          // Create the transaction for next month
+      for (const expense of activeExpenses) {
+        // Initialize generatedMonths array if it doesn't exist (for backward compatibility)
+        const generatedMonths = expense.generatedMonths || [];
+        
+        // Check if we already generated for current month using the generatedMonths array
+        const alreadyGenerated = generatedMonths.includes(currentMonthKey);
+
+        if (!alreadyGenerated) {
+          // Create the transaction for current month
           const transactionData = {
             type: "salida",
             generalId: expense.generalId,
@@ -112,7 +116,7 @@ export const recurringExpenseService = {
             subconceptId: expense.subconceptId,
             description: `${expense.description} (Recurrente)`,
             amount: expense.amount,
-            date: nextMonth,
+            date: currentMonth,
             providerId: expense.providerId,
             division: expense.division,
             isRecurring: true,
@@ -122,9 +126,23 @@ export const recurringExpenseService = {
           const newTransaction = await transactionService.create(transactionData, user);
           generatedTransactions.push(newTransaction);
 
-          // Update the lastGenerated date
-          await this.update(expense.id, { lastGenerated: serverTimestamp() }, user);
+          // Update the lastGenerated date and add the month to generatedMonths array
+          const updatedGeneratedMonths = [...generatedMonths, currentMonthKey];
+          await this.update(expense.id, { 
+            lastGenerated: serverTimestamp(),
+            generatedMonths: updatedGeneratedMonths
+          }, user);
+          
+          console.log(`Generated recurring transaction for expense ${expense.id} for current month ${currentMonthKey}`);
+        } else {
+          console.log(`Skipping recurring expense ${expense.id} - already generated for current month ${currentMonthKey}`);
         }
+      }
+
+      if (generatedTransactions.length > 0) {
+        console.log(`Generated ${generatedTransactions.length} new recurring transactions for current month ${currentMonthKey}`);
+      } else {
+        console.log(`No new recurring transactions needed for current month ${currentMonthKey}`);
       }
 
       return generatedTransactions;
@@ -166,6 +184,7 @@ export const recurringExpenseService = {
       
       const querySnapshot = await getDocs(transactionsQuery);
       const deletedTransactions = [];
+      const deletedMonthKeys = new Set();
       
       for (const docSnapshot of querySnapshot.docs) {
         const transaction = { id: docSnapshot.id, ...docSnapshot.data() };
@@ -175,8 +194,26 @@ export const recurringExpenseService = {
         if (transactionDate >= startOfNextMonth) {
           await transactionService.delete(transaction.id, user);
           deletedTransactions.push(transaction);
+          
+          // Track the month key for this deleted transaction
+          const monthKey = `${transactionDate.getFullYear()}-${String(transactionDate.getMonth()).padStart(2, '0')}`;
+          deletedMonthKeys.add(monthKey);
+          
           console.log(`Deleted future recurring transaction: ${transaction.id} for date ${transactionDate.toLocaleDateString()}`);
         }
+      }
+      
+      // Update the recurring expense to remove the deleted months from generatedMonths
+      if (deletedMonthKeys.size > 0) {
+        const expense = await this.getById(recurringExpenseId);
+        const currentGeneratedMonths = expense.generatedMonths || [];
+        const updatedGeneratedMonths = currentGeneratedMonths.filter(monthKey => !deletedMonthKeys.has(monthKey));
+        
+        await this.update(recurringExpenseId, {
+          generatedMonths: updatedGeneratedMonths
+        }, user);
+        
+        console.log(`Updated generatedMonths for expense ${recurringExpenseId}. Removed future months: ${Array.from(deletedMonthKeys).join(', ')}`);
       }
       
       console.log(`Cleaned ${deletedTransactions.length} future transactions for recurring expense ${recurringExpenseId}`);
@@ -203,6 +240,93 @@ export const recurringExpenseService = {
     } catch (error) {
       console.error("Error toggling recurring expense:", error);
       throw new Error("Error al cambiar el estado del gasto recurrente");
+    }
+  },
+
+  // Get transactions generated by a recurring expense
+  async getGeneratedTransactions(recurringExpenseId) {
+    try {
+      const transactionsQuery = query(
+        collection(db, "transactions"),
+        where("recurringExpenseId", "==", recurringExpenseId),
+        where("isRecurring", "==", true),
+        orderBy("date", "desc")
+      );
+      
+      const querySnapshot = await getDocs(transactionsQuery);
+      const transactions = [];
+      
+      querySnapshot.forEach((doc) => {
+        const transaction = { id: doc.id, ...doc.data() };
+        transactions.push(transaction);
+      });
+      
+      return transactions;
+    } catch (error) {
+      console.error("Error getting generated transactions:", error);
+      throw new Error("Error al obtener las transacciones generadas");
+    }
+  },
+
+  // Get generated months history for a recurring expense
+  async getGeneratedMonthsHistory(recurringExpenseId) {
+    try {
+      const expense = await this.getById(recurringExpenseId);
+      const generatedMonths = expense.generatedMonths || [];
+      
+      // Convert month keys to readable format and add additional info
+      const monthsHistory = generatedMonths.map(monthKey => {
+        const [year, month] = monthKey.split('-');
+        const date = new Date(parseInt(year), parseInt(month), 1);
+        const monthName = date.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+        
+        return {
+          monthKey,
+          monthName: monthName.charAt(0).toUpperCase() + monthName.slice(1),
+          year: parseInt(year),
+          month: parseInt(month),
+          date
+        };
+      });
+      
+      // Sort by date (most recent first)
+      monthsHistory.sort((a, b) => b.date - a.date);
+      
+      return monthsHistory;
+    } catch (error) {
+      console.error("Error getting generated months history:", error);
+      throw new Error("Error al obtener el historial de meses generados");
+    }
+  },
+
+  // Migration method to add generatedMonths field to existing recurring expenses
+  async migrateExistingExpenses() {
+    try {
+      const allExpenses = await this.getAll();
+      const expensesToMigrate = allExpenses.filter(expense => !expense.generatedMonths);
+      
+      console.log(`Found ${expensesToMigrate.length} recurring expenses to migrate`);
+      
+      for (const expense of expensesToMigrate) {
+        const generatedMonths = [];
+        
+        // If lastGenerated exists, we can infer some generated months
+        if (expense.lastGenerated) {
+          const lastGeneratedDate = expense.lastGenerated.toDate();
+          const monthKey = `${lastGeneratedDate.getFullYear()}-${String(lastGeneratedDate.getMonth()).padStart(2, '0')}`;
+          generatedMonths.push(monthKey);
+        }
+        
+        // Update the expense with the new generatedMonths field
+        await this.update(expense.id, { generatedMonths }, { uid: 'system-migration' });
+        console.log(`Migrated recurring expense ${expense.id} with generatedMonths: ${generatedMonths.join(', ')}`);
+      }
+      
+      console.log(`Migration completed for ${expensesToMigrate.length} recurring expenses`);
+      return expensesToMigrate.length;
+    } catch (error) {
+      console.error("Error migrating existing expenses:", error);
+      throw new Error("Error en la migración de gastos recurrentes");
     }
   },
 };

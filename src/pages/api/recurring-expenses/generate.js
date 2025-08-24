@@ -16,7 +16,10 @@ export default async function handler(req, res) {
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    // Generate pending transactions for next month
+    // First, run migration for existing expenses that don't have generatedMonths
+    await recurringExpenseService.migrateExistingExpenses();
+    
+    // Generate pending transactions for current month
     const generatedTransactions = await recurringExpenseService.generatePendingTransactions({
       uid: 'system', // System user for automated generation
       email: 'system@santiago-fc.com'

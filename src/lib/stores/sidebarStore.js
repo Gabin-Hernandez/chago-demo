@@ -60,7 +60,9 @@ const useSidebarStore = create(
           if (!currentExpanded.catalogos) {
             get().expandSection('catalogos');
           }
-        } else if (pathname.includes('/configuracion/correos-notificacion')) {
+        } else if (pathname.includes('/configuracion/correos-notificacion') ||
+                   pathname.includes('/configuracion/logs') ||
+                   pathname.includes('/configuracion/dev-tools')) {
           if (!currentExpanded.configuracion) {
             get().expandSection('configuracion');
           }

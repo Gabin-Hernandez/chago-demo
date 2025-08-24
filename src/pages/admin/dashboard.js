@@ -5,12 +5,12 @@ import SummaryCards from "../../components/dashboard/SummaryCards";
 import MonthlyTrendsChart from "../../components/charts/MonthlyTrendsChart";
 import BarConceptChart from "../../components/charts/BarConceptChart";
 import RecurringExpenseAlert from "../../components/dashboard/RecurringExpenseAlert";
+import AdvancedDateSelector from "../../components/dashboard/AdvancedDateSelector";
 import { dashboardService } from "../../lib/services/dashboardService";
 import { generalService } from "../../lib/services/generalService";
 import { transactionService } from "../../lib/services/transactionService";
 import { conceptService } from "../../lib/services/conceptService";
-
-import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
+import { recurringExpenseService } from "../../lib/services/recurringExpenseService";
 
 const Dashboard = () => {
   const { error, success } = useToast();
@@ -29,29 +29,42 @@ const Dashboard = () => {
   const [monthlyTrends, setMonthlyTrends] = useState([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [currentMonthName, setCurrentMonthName] = useState("");
-  const [showMonthDropdown, setShowMonthDropdown] = useState(false);
-  const monthDropdownRef = useRef(null);
 
   useEffect(() => {
     loadDashboardData();
     updateMonthName();
   }, [currentDate]);
-  
+
+  // Separate useEffect for recurring transactions - only on component mount
   useEffect(() => {
-    // Close dropdown when clicking outside
-    const handleClickOutside = (event) => {
-      if (monthDropdownRef.current && !monthDropdownRef.current.contains(event.target)) {
-        setShowMonthDropdown(false);
-      }
-    };
-    
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    checkAndGenerateRecurringTransactions();
+  }, []); // Empty dependency array means it only runs once on mount
 
   const updateMonthName = () => {
     const monthName = currentDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
     setCurrentMonthName(monthName.charAt(0).toUpperCase() + monthName.slice(1));
+  };
+
+  const checkAndGenerateRecurringTransactions = async () => {
+    try {
+      // First, run migration for existing expenses that don't have generatedMonths
+      await recurringExpenseService.migrateExistingExpenses();
+      
+      // Then generate pending transactions for current month
+      const generatedTransactions = await recurringExpenseService.generatePendingTransactions();
+      
+      if (generatedTransactions.length > 0) {
+        const currentMonthName = new Date().toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+        success(`🎯 Sistema automático: Se generaron ${generatedTransactions.length} gastos recurrentes para ${currentMonthName}`);
+        // Reload dashboard data to reflect the new transactions
+        setTimeout(() => {
+          loadDashboardData();
+        }, 1000);
+      }
+    } catch (error) {
+      console.error("Error auto-generating recurring transactions:", error);
+      // Keep it silent for users - no error toast
+    }
   };
 
   // Función para agrupar transacciones por categoría general
@@ -171,35 +184,8 @@ const Dashboard = () => {
     }
   };
 
-  const navigateMonth = (direction) => {
-    const newDate = new Date(currentDate);
-    newDate.setMonth(newDate.getMonth() + direction);
+  const handleDateChange = (newDate) => {
     setCurrentDate(newDate);
-    setShowMonthDropdown(false);
-    success(`Mostrando datos de ${newDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}`);
-  };
-  
-  const selectMonth = (monthIndex) => {
-    const newDate = new Date(currentDate);
-    newDate.setMonth(monthIndex);
-    setCurrentDate(newDate);
-    setShowMonthDropdown(false);
-    success(`Mostrando datos de ${newDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}`);
-  };
-  
-  const getMonthsList = () => {
-    const months = [];
-    const currentYear = currentDate.getFullYear();
-    
-    for (let i = 0; i < 12; i++) {
-      const date = new Date(currentYear, i, 1);
-      months.push({
-        index: i,
-        name: date.toLocaleDateString('es-ES', { month: 'long' })
-      });
-    }
-    
-    return months;
   };
 
   if (loading) {
@@ -258,56 +244,12 @@ const Dashboard = () => {
                 Resumen de transacciones financieras
               </p>
             </div>
-            <div className="flex space-x-2">
-              <button
-                onClick={() => navigateMonth(-1)}
-                className="p-2 rounded-full bg-primary/10 hover:bg-primary/20 text-primary transition-colors"
-                aria-label="Mes anterior"
-              >
-                <ChevronLeftIcon className="h-5 w-5" />
-              </button>
-              <div className="relative" ref={monthDropdownRef}>
-                <button
-                  onClick={() => setShowMonthDropdown(!showMonthDropdown)}
-                  className="px-3 py-2 rounded-md bg-primary/10 hover:bg-primary/20 text-primary text-sm font-medium transition-colors flex items-center space-x-1"
-                >
-                  <span>{currentDate.getMonth() === new Date().getMonth() && currentDate.getFullYear() === new Date().getFullYear() ? "Mes Actual" : currentDate.toLocaleDateString('es-ES', { month: 'long' })}</span>
-                  <ChevronDownIcon className="h-4 w-4" />
-                </button>
-                
-                {showMonthDropdown && (
-                  <div className="absolute z-10 mt-1 w-40 bg-white rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5 focus:outline-none">
-                    <button
-                      onClick={() => {
-                        setCurrentDate(new Date());
-                        setShowMonthDropdown(false);
-                        success("Mostrando datos del mes actual");
-                      }}
-                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    >
-                      Mes Actual
-                    </button>
-                    <div className="border-t border-gray-100 my-1"></div>
-                    {getMonthsList().map((month) => (
-                      <button
-                        key={month.index}
-                        onClick={() => selectMonth(month.index)}
-                        className={`block w-full text-left px-4 py-2 text-sm ${currentDate.getMonth() === month.index ? 'bg-primary/10 text-primary' : 'text-gray-700 hover:bg-gray-100'}`}
-                      >
-                        {month.name.charAt(0).toUpperCase() + month.name.slice(1)}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <button
-                onClick={() => navigateMonth(1)}
-                className="p-2 rounded-full bg-primary/10 hover:bg-primary/20 text-primary transition-colors"
-                aria-label="Mes siguiente"
-              >
-                <ChevronRightIcon className="h-5 w-5" />
-              </button>
-            </div>
+            <AdvancedDateSelector
+              currentDate={currentDate}
+              onDateChange={handleDateChange}
+              onSuccess={success}
+              onError={error}
+            />
           </div>
         </div>
 

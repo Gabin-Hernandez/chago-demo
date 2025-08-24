@@ -172,5 +172,113 @@ export const dashboardService = {
       console.error('Error getting payment status summary:', error);
       throw new Error('Error al obtener resumen de estado de pagos');
     }
+  },
+
+  // Get available months and years with data
+  async getAvailableMonthsAndYears() {
+    try {
+      const transactions = await transactionService.getAll();
+      
+      if (transactions.length === 0) {
+        return { months: [], years: [] };
+      }
+
+      // Extract unique month-year combinations
+      const monthYearSet = new Set();
+      const yearSet = new Set();
+      
+      transactions.forEach(transaction => {
+        if (transaction.date) {
+          // Handle both Date objects and Firestore timestamps
+          let date;
+          if (transaction.date.toDate) {
+            // Firestore timestamp
+            date = transaction.date.toDate();
+          } else if (transaction.date instanceof Date) {
+            date = transaction.date;
+          } else {
+            // String date
+            date = new Date(transaction.date);
+          }
+          
+          if (!isNaN(date.getTime())) {
+            const year = date.getFullYear();
+            const month = date.getMonth();
+            const monthYear = `${year}-${month.toString().padStart(2, '0')}`;
+            
+            monthYearSet.add(monthYear);
+            yearSet.add(year);
+          }
+        }
+      });
+
+      // Convert to sorted arrays
+      const monthYears = Array.from(monthYearSet).sort().map(monthYear => {
+        const [year, month] = monthYear.split('-');
+        return {
+          year: parseInt(year),
+          month: parseInt(month),
+          monthYear,
+          displayName: new Date(parseInt(year), parseInt(month), 1).toLocaleDateString('es-ES', { 
+            month: 'long', 
+            year: 'numeric' 
+          })
+        };
+      });
+
+      const years = Array.from(yearSet).sort((a, b) => b - a); // Most recent first
+
+      return {
+        months: monthYears,
+        years
+      };
+    } catch (error) {
+      console.error('Error getting available months and years:', error);
+      throw new Error('Error al obtener meses y años disponibles');
+    }
+  },
+
+  // Get available months for a specific year
+  async getAvailableMonthsForYear(year) {
+    try {
+      const startOfYear = new Date(year, 0, 1);
+      const endOfYear = new Date(year, 11, 31, 23, 59, 59);
+      
+      const transactions = await transactionService.getByDateRange(startOfYear, endOfYear);
+      
+      if (transactions.length === 0) {
+        return [];
+      }
+
+      const monthSet = new Set();
+      
+      transactions.forEach(transaction => {
+        if (transaction.date) {
+          let date;
+          if (transaction.date.toDate) {
+            date = transaction.date.toDate();
+          } else if (transaction.date instanceof Date) {
+            date = transaction.date;
+          } else {
+            date = new Date(transaction.date);
+          }
+          
+          if (!isNaN(date.getTime()) && date.getFullYear() === year) {
+            monthSet.add(date.getMonth());
+          }
+        }
+      });
+
+      const months = Array.from(monthSet).sort().map(month => ({
+        month,
+        year,
+        displayName: new Date(year, month, 1).toLocaleDateString('es-ES', { month: 'long' })
+      }));
+
+      return months;
+    } catch (error) {
+      console.error('Error getting available months for year:', error);
+      throw new Error('Error al obtener meses disponibles para el año');
+    }
   }
 };

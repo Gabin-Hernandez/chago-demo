@@ -4,6 +4,8 @@ import AdminLayout from "../../../components/layout/AdminLayout";
 import ProtectedRoute from "../../../components/auth/ProtectedRoute";
 import { useAuth } from "../../../context/AuthContext";
 import { useToast } from "../../../components/ui/Toast";
+import Switch from "../../../components/ui/Switch";
+import RecurringExpenseDetailsModal from "../../../components/forms/RecurringExpenseDetailsModal";
 import { recurringExpenseService } from "../../../lib/services/recurringExpenseService";
 import { conceptService } from "../../../lib/services/conceptService";
 import { subconceptService } from "../../../lib/services/subconceptService";
@@ -20,7 +22,9 @@ const GastosRecurrentes = () => {
   const [generals, setGenerals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [generatingTransactions, setGeneratingTransactions] = useState(false);
+  const [selectedExpense, setSelectedExpense] = useState(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [togglingExpense, setTogglingExpense] = useState(null);
   const toast = useToast();
 
   // Check permissions
@@ -97,6 +101,7 @@ const GastosRecurrentes = () => {
     }
 
     try {
+      setTogglingExpense(expenseId);
       const newStatus = await recurringExpenseService.toggleActive(expenseId);
       setRecurringExpenses(prev => 
         prev.map(expense => 
@@ -114,7 +119,24 @@ const GastosRecurrentes = () => {
     } catch (error) {
       console.error("Error toggling expense:", error);
       toast.error("Error al cambiar el estado del gasto");
+    } finally {
+      setTogglingExpense(null);
     }
+  };
+
+  const handleViewDetails = (expense) => {
+    setSelectedExpense(expense);
+    setShowDetailsModal(true);
+  };
+
+  const handleCloseDetailsModal = () => {
+    setShowDetailsModal(false);
+    setSelectedExpense(null);
+  };
+
+  const handleShowDetails = (expense) => {
+    setSelectedExpense(expense);
+    setShowDetailsModal(true);
   };
 
   const handleDelete = async (expenseId) => {
@@ -129,24 +151,6 @@ const GastosRecurrentes = () => {
     } catch (error) {
       console.error("Error deleting expense:", error);
       toast.error("Error al eliminar el gasto recurrente");
-    }
-  };
-
-  const handleGenerateTransactions = async () => {
-    try {
-      setGeneratingTransactions(true);
-      const generatedTransactions = await recurringExpenseService.generatePendingTransactions();
-      
-      if (generatedTransactions.length > 0) {
-        toast.success(`Se generaron ${generatedTransactions.length} transacciones pendientes para el próximo mes`);
-      } else {
-        toast.info("No hay gastos recurrentes pendientes de generar");
-      }
-    } catch (error) {
-      console.error("Error generating transactions:", error);
-      toast.error("Error al generar las transacciones pendientes");
-    } finally {
-      setGeneratingTransactions(false);
     }
   };
 
@@ -196,7 +200,7 @@ const GastosRecurrentes = () => {
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900">Gastos Recurrentes</h1>
                   <p className="text-gray-600 mt-1">
-                    Gestiona los gastos que se repiten automáticamente cada mes
+                    Gestiona los gastos que se generan automáticamente cada mes
                   </p>
                   <div className="flex items-center mt-2 text-sm text-gray-500">
                     <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -209,52 +213,30 @@ const GastosRecurrentes = () => {
               {canManageTransactions && (
                 <div className="flex flex-col sm:flex-row gap-3">
                   <button
-                    onClick={handleGenerateTransactions}
-                    disabled={generatingTransactions || activeExpenses.length === 0}
-                    className="px-6 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 focus:ring-4 focus:ring-green-500/20 focus:ring-offset-2 flex items-center justify-center transition-all duration-200 shadow-lg hover:shadow-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {generatingTransactions ? (
-                      <>
-                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Generando...
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                        </svg>
-                        Generar Próximo Mes
-                      </>
-                    )}
-                  </button>
-                  <button
                     onClick={() => router.push('/admin/transacciones/salidas')}
                     className="px-6 py-3 bg-rose-400 text-white rounded-xl hover:bg-rose-500 focus:ring-4 focus:ring-rose-400/20 focus:ring-offset-2 flex items-center justify-center transition-all duration-200 shadow-lg hover:shadow-xl font-medium"
                   >
                     <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                     </svg>
-                    Nuevo Gasto
+                    Nuevo Gasto Recurrente
                   </button>
                 </div>
               )}
             </div>
             
             {/* Información sobre funcionamiento */}
-            <div className="mt-6 bg-rose-50 border border-rose-200 rounded-xl p-4">
+            <div className="mt-6 bg-green-50 border border-green-200 rounded-xl p-4">
               <div className="flex items-start space-x-3">
-                <svg className="w-5 h-5 text-rose-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <svg className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <div className="text-sm text-rose-700">
-                  <p className="font-medium mb-1">ℹ️ Información importante sobre gastos recurrentes:</p>
-                  <ul className="space-y-1 text-rose-600">
-                    <li>• <strong>Activar:</strong> El gasto se generará automáticamente cada mes como pendiente</li>
-                    <li>• <strong>Desactivar:</strong> Solo se generará para el mes actual, no para meses futuros</li>
-                    <li>• <strong>Eliminar:</strong> Se borra completamente el gasto recurrente (no afecta transacciones ya creadas)</li>
+                <div className="text-sm text-green-700">
+                  <p className="font-medium mb-1">🤖 Sistema Automático de Gastos Recurrentes</p>
+                  <ul className="space-y-1 text-green-600">
+                    <li>• <strong>Generación automática:</strong> Los gastos recurrentes se crean automáticamente al acceder al Dashboard</li>
+                    <li>• <strong>Activar/Desactivar:</strong> Controla qué gastos se generarán en futuros meses</li>
+                    <li>• <strong>Sin intervención manual:</strong> El sistema detecta y genera los gastos pendientes por ti</li>
                   </ul>
                 </div>
               </div>
@@ -364,27 +346,22 @@ const GastosRecurrentes = () => {
                       {filteredExpenses.map((expense) => (
                         <tr key={expense.id} className="hover:bg-muted/50">
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-                              expense.isActive 
-                                ? 'bg-green-100 text-green-800 border border-green-200' 
-                                : 'bg-gray-100 text-gray-800 border border-gray-200'
-                            }`}>
-                              {expense.isActive ? (
-                                <>
-                                  <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                  </svg>
-                                  Activo
-                                </>
-                              ) : (
-                                <>
-                                  <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                                  </svg>
-                                  Inactivo
-                                </>
-                              )}
-                            </span>
+                            <div className="flex items-center space-x-3">
+                              <Switch
+                                enabled={expense.isActive}
+                                onChange={() => handleToggleActive(expense.id, expense.isActive)}
+                                loading={togglingExpense === expense.id}
+                                size="sm"
+                                disabled={!canManageTransactions}
+                              />
+                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                expense.isActive 
+                                  ? 'bg-green-100 text-green-800 border border-green-200' 
+                                  : 'bg-gray-100 text-gray-800 border border-gray-200'
+                              }`}>
+                                {expense.isActive ? 'Activo' : 'Inactivo'}
+                              </span>
+                            </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
                             {getGeneralName(expense.generalId)}
@@ -407,14 +384,13 @@ const GastosRecurrentes = () => {
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <div className="flex items-center space-x-2">
                               <button
-                                onClick={() => handleToggleActive(expense.id, expense.isActive)}
-                                className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                                  expense.isActive
-                                    ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
-                                    : 'bg-green-100 text-green-800 hover:bg-green-200'
-                                }`}
+                                onClick={() => handleViewDetails(expense)}
+                                className="px-3 py-1 bg-blue-100 text-blue-800 hover:bg-blue-200 rounded-md text-xs font-medium transition-colors inline-flex items-center"
                               >
-                                {expense.isActive ? 'Desactivar' : 'Activar'}
+                                <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                                </svg>
+                                Detalles
                               </button>
                               {canManageTransactions && (
                                 <button
@@ -436,19 +412,28 @@ const GastosRecurrentes = () => {
                 <div className="md:hidden divide-y divide-border">
                   {filteredExpenses.map((expense) => (
                     <div key={expense.id} className="p-4">
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <div className="flex items-center space-x-2 mb-1">
-                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                              expense.isActive 
-                                ? 'bg-green-100 text-green-800' 
-                                : 'bg-gray-100 text-gray-800'
-                            }`}>
-                              {expense.isActive ? 'Activo' : 'Inactivo'}
-                            </span>
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-rose-100 text-rose-600">
-                              Recurrente
-                            </span>
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center space-x-2">
+                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                expense.isActive 
+                                  ? 'bg-green-100 text-green-800' 
+                                  : 'bg-gray-100 text-gray-800'
+                              }`}>
+                                {expense.isActive ? 'Activo' : 'Inactivo'}
+                              </span>
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-rose-100 text-rose-600">
+                                Recurrente
+                              </span>
+                            </div>
+                            <Switch
+                              enabled={expense.isActive}
+                              onChange={() => handleToggleActive(expense.id, expense.isActive)}
+                              loading={togglingExpense === expense.id}
+                              size="sm"
+                              disabled={!canManageTransactions}
+                            />
                           </div>
                           <p className="text-sm font-medium text-foreground">
                             {getConceptName(expense.conceptId)} - {getSubconceptName(expense.subconceptId)}
@@ -462,7 +447,7 @@ const GastosRecurrentes = () => {
                             </p>
                           )}
                         </div>
-                        <div className="text-right">
+                        <div className="text-right ml-4">
                           <p className="text-sm font-medium text-foreground">
                             {formatCurrency(expense.amount)}
                           </p>
@@ -471,20 +456,19 @@ const GastosRecurrentes = () => {
                           </p>
                         </div>
                       </div>
-                      <div className="flex justify-between items-center mt-3">
+                      <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-100">
                         <p className="text-xs text-muted-foreground">
                           {getGeneralName(expense.generalId)}
                         </p>
                         <div className="flex items-center space-x-2">
                           <button
-                            onClick={() => handleToggleActive(expense.id, expense.isActive)}
-                            className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                              expense.isActive
-                                ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
-                                : 'bg-green-100 text-green-800 hover:bg-green-200'
-                            }`}
+                            onClick={() => handleViewDetails(expense)}
+                            className="px-3 py-1 bg-blue-100 text-blue-800 hover:bg-blue-200 rounded-md text-xs font-medium transition-colors inline-flex items-center"
                           >
-                            {expense.isActive ? 'Desactivar' : 'Activar'}
+                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                            </svg>
+                            Detalles
                           </button>
                           {canManageTransactions && (
                             <button
@@ -503,6 +487,21 @@ const GastosRecurrentes = () => {
             )}
           </div>
         </div>
+
+        {/* Details Modal */}
+        {selectedExpense && (
+          <RecurringExpenseDetailsModal
+            expense={selectedExpense}
+            isOpen={showDetailsModal}
+            onClose={() => {
+              setShowDetailsModal(false);
+              setSelectedExpense(null);
+            }}
+            conceptName={getConceptName(selectedExpense.conceptId)}
+            subconceptName={getSubconceptName(selectedExpense.subconceptId)}
+            providerName={getProviderName(selectedExpense.providerId)}
+          />
+        )}
       </AdminLayout>
     </ProtectedRoute>
   );

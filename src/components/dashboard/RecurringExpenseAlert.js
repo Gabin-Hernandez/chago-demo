@@ -20,13 +20,19 @@ const RecurringExpenseAlert = () => {
   const handleGenerateNow = async () => {
     try {
       setGenerating(true);
+      
+      // First, run migration for existing expenses that don't have generatedMonths
+      await recurringExpenseService.migrateExistingExpenses();
+      
+      // Then generate pending transactions for current month
       const generatedTransactions = await recurringExpenseService.generatePendingTransactions(user);
       
       if (generatedTransactions.length > 0) {
-        toast.success(`Se generaron ${generatedTransactions.length} transacciones pendientes para el próximo mes`);
+        const currentMonthName = new Date().toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+        toast.success(`Se generaron ${generatedTransactions.length} transacciones pendientes para ${currentMonthName}`);
         refetch(); // Refresh the data
       } else {
-        toast.info("No hay gastos recurrentes pendientes de generar");
+        toast.info("No hay gastos recurrentes pendientes de generar para este mes");
       }
     } catch (error) {
       console.error("Error generating transactions:", error);
