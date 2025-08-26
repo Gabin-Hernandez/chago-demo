@@ -3,7 +3,7 @@ import { useRouter } from "next/router";
 import AdminLayout from "../../../components/layout/AdminLayout";
 import SubconceptModal from "../../../components/forms/SubconceptModal";
 
-import MassiveCsvImportModal from "../../../components/forms/MassiveCsvImportModal";
+
 import { subconceptService } from "../../../lib/services/subconceptService";
 import { conceptService } from "../../../lib/services/conceptService";
 import { generalService } from "../../../lib/services/generalService";
@@ -20,7 +20,7 @@ export default function SubconceptosPage() {
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const [isMassiveImportModalOpen, setIsMassiveImportModalOpen] = useState(false);
+
   const [editingSubconcept, setEditingSubconcept] = useState(null);
   const [filterConcept, setFilterConcept] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
@@ -92,9 +92,7 @@ export default function SubconceptosPage() {
 
 
 
-  const handleMassiveImportSuccess = async () => {
-    await loadData(); // Reload the list after massive import
-  };
+
 
   const getConceptName = (conceptId) => {
     const concept = concepts.find((c) => c.id === conceptId);
@@ -160,25 +158,7 @@ export default function SubconceptosPage() {
           </div>
           <div className="mt-4 sm:mt-0 flex space-x-3">
 
-            <button
-              onClick={() => setIsMassiveImportModalOpen(true)}
-              className="inline-flex items-center px-4 py-2 border border-orange-300 rounded-md shadow-sm text-sm font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
-            >
-              <svg
-                className="-ml-1 mr-2 h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"
-                />
-              </svg>
-              Importar CSV
-            </button>
+
             <button
               onClick={handleCreateSubconcept}
               className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
@@ -408,12 +388,7 @@ export default function SubconceptosPage() {
       
 
       
-      {/* Massive CSV Import Modal */}
-      <MassiveCsvImportModal
-        isOpen={isMassiveImportModalOpen}
-        onClose={() => setIsMassiveImportModalOpen(false)}
-        onSuccess={handleMassiveImportSuccess}
-      />
+
     </AdminLayout>
   );
 }

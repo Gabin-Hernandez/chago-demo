@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { generalService } from "../../lib/services/generalService";
 import { conceptService } from "../../lib/services/conceptService";
-import { subconceptService } from "../../lib/services/subconceptService";
 
 export default function MassiveCsvImportModal({ isOpen, onClose, onSuccess }) {
   const [file, setFile] = useState(null);
@@ -11,16 +10,13 @@ export default function MassiveCsvImportModal({ isOpen, onClose, onSuccess }) {
   const [showTableExample, setShowTableExample] = useState(false);
 
   const downloadTemplate = () => {
-    const csvContent = `tipo,nombre,descripcion,general_nombre,concepto_nombre
-general,Ingresos por Cuotas,Ingresos generados por cuotas de socios,,
-general,Gastos Operativos,Gastos necesarios para el funcionamiento,,
-general,Ingresos por Eventos,Ingresos por eventos especiales,,
-concepto,Cuotas Mensuales,Cuotas regulares de socios,Ingresos por Cuotas,
-concepto,Servicios Básicos,Electricidad agua gas internet,Gastos Operativos,
-concepto,Torneos,Organización de torneos,Ingresos por Eventos,
-subconcepto,Cuotas Juveniles,Cuotas categorías juveniles,Ingresos por Cuotas,Cuotas Mensuales
-subconcepto,Electricidad,Factura mensual electricidad,Gastos Operativos,Servicios Básicos
-subconcepto,Torneo Apertura,Torneo inicio temporada,Ingresos por Eventos,Torneos`;
+    const csvContent = `tipo,nombre,descripcion,general_nombre
+general,Ingresos por Cuotas,Ingresos generados por cuotas de socios,
+general,Gastos Operativos,Gastos necesarios para el funcionamiento,
+general,Ingresos por Eventos,Ingresos por eventos especiales,
+concepto,Cuotas Mensuales,Cuotas regulares de socios,Ingresos por Cuotas
+concepto,Servicios Básicos,Electricidad agua gas internet,Gastos Operativos
+concepto,Torneos,Organización de torneos,Ingresos por Eventos`;
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -62,7 +58,7 @@ subconcepto,Torneo Apertura,Torneo inicio temporada,Ingresos por Eventos,Torneos
       return row;
     });
     
-    const validTypes = ['general', 'concepto', 'subconcepto'];
+    const validTypes = ['general', 'concepto'];
     rows.forEach(row => {
       if (!row.tipo || !validTypes.includes(row.tipo.toLowerCase())) {
         throw new Error(`Línea ${row.lineNumber}: Tipo '${row.tipo}' no válido. Use: ${validTypes.join(', ')}`);
@@ -72,14 +68,6 @@ subconcepto,Torneo Apertura,Torneo inicio temporada,Ingresos por Eventos,Torneos
       }
       if (row.tipo.toLowerCase() === 'concepto' && (!row.general_nombre || row.general_nombre.trim() === '')) {
         throw new Error(`Línea ${row.lineNumber}: Los conceptos requieren 'general_nombre'`);
-      }
-      if (row.tipo.toLowerCase() === 'subconcepto') {
-        if (!row.general_nombre || row.general_nombre.trim() === '') {
-          throw new Error(`Línea ${row.lineNumber}: Los subconceptos requieren 'general_nombre'`);
-        }
-        if (!row.concepto_nombre || row.concepto_nombre.trim() === '') {
-          throw new Error(`Línea ${row.lineNumber}: Los subconceptos requieren 'concepto_nombre'`);
-        }
       }
     });
     
@@ -117,8 +105,7 @@ subconcepto,Torneo Apertura,Torneo inicio temporada,Ingresos por Eventos,Torneos
       
       const results = {
         generales: { created: [], errors: [] },
-        conceptos: { created: [], errors: [] },
-        subconceptos: { created: [], errors: [] }
+        conceptos: { created: [], errors: [] }
       };
 
       const generalesMap = new Map();
@@ -197,63 +184,11 @@ subconcepto,Torneo Apertura,Torneo inicio temporada,Ingresos por Eventos,Torneos
         }
       }
 
-      for (const row of rows) {
-        try {
-          if (row.tipo.toLowerCase() === 'subconcepto') {
-            if (!row.nombre || row.nombre.trim() === '') {
-              results.subconceptos.errors.push(`Línea ${row.lineNumber}: Nombre requerido`);
-              continue;
-            }
 
-            if (!row.general_nombre || row.general_nombre.trim() === '') {
-              results.subconceptos.errors.push(`Línea ${row.lineNumber}: General requerido para subconceptos`);
-              continue;
-            }
-
-            if (!row.concepto_nombre || row.concepto_nombre.trim() === '') {
-              results.subconceptos.errors.push(`Línea ${row.lineNumber}: Concepto requerido para subconceptos`);
-              continue;
-            }
-
-            let general = generalesMap.get(row.general_nombre.toLowerCase());
-            if (!general) {
-              const existingGenerals = await generalService.getAll();
-              general = existingGenerals.find(g => g.name.toLowerCase() === row.general_nombre.toLowerCase());
-              if (!general) {
-                results.subconceptos.errors.push(`Línea ${row.lineNumber}: General '${row.general_nombre}' no encontrado`);
-                continue;
-              }
-            }
-
-            const conceptKey = `${row.concepto_nombre.toLowerCase()}-${general.id}`;
-            let concept = conceptosMap.get(conceptKey);
-            if (!concept) {
-              const existingConcepts = await conceptService.getByGeneralId(general.id);
-              concept = existingConcepts.find(c => c.name.toLowerCase() === row.concepto_nombre.toLowerCase());
-              if (!concept) {
-                results.subconceptos.errors.push(`Línea ${row.lineNumber}: Concepto '${row.concepto_nombre}' no encontrado`);
-                continue;
-              }
-            }
-
-            const subconceptData = {
-              name: row.nombre.trim(),
-              description: row.descripcion || '',
-              conceptId: concept.id,
-              type: concept.type
-            };
-
-            const createdSubconcept = await subconceptService.create(subconceptData);
-            results.subconceptos.created.push(createdSubconcept);
-          }
-        } catch (error) {
-          results.subconceptos.errors.push(`Línea ${row.lineNumber}: ${error.message}`);
-        }
-      }
 
       setImportResults(results);
       
-      const totalCreated = results.generales.created.length + results.conceptos.created.length + results.subconceptos.created.length;
+      const totalCreated = results.generales.created.length + results.conceptos.created.length;
       if (totalCreated > 0 && onSuccess) {
         onSuccess();
       }
@@ -345,9 +280,9 @@ subconcepto,Torneo Apertura,Torneo inicio temporada,Ingresos por Eventos,Torneos
           <div className="bg-gray-50 p-4 rounded-lg">
              <h4 className="font-medium text-gray-900 mb-3">2. Formato del Archivo</h4>
              <div className="text-sm text-gray-700 space-y-2">
-               <p><strong>Columnas requeridas:</strong> tipo, nombre, descripcion, general_nombre, concepto_nombre</p>
-               <p><strong>Valores válidos para 'tipo':</strong> general, concepto, subconcepto</p>
-               <p><strong>Orden recomendado:</strong> Primero generales, luego conceptos, finalmente subconceptos</p>
+               <p><strong>Columnas requeridas:</strong> tipo, nombre, descripcion, general_nombre</p>
+               <p><strong>Valores válidos para 'tipo':</strong> general, concepto</p>
+               <p><strong>Orden recomendado:</strong> Primero generales, luego conceptos</p>
              </div>
              
              {/* Accordion para ejemplo de tabla */}
@@ -378,7 +313,6 @@ subconcepto,Torneo Apertura,Torneo inicio temporada,Ingresos por Eventos,Torneos
                            <th className="px-2 py-2 border border-gray-300 text-left font-semibold text-orange-800">Nombre</th>
                            <th className="px-2 py-2 border border-gray-300 text-left font-semibold text-orange-800">Descripción</th>
                            <th className="px-2 py-2 border border-gray-300 text-left font-semibold text-orange-800">General</th>
-                           <th className="px-2 py-2 border border-gray-300 text-left font-semibold text-orange-800">Concepto</th>
                          </tr>
                        </thead>
                        <tbody>
@@ -387,13 +321,11 @@ subconcepto,Torneo Apertura,Torneo inicio temporada,Ingresos por Eventos,Torneos
                            <td className="px-2 py-2 border border-gray-300">Ingresos por Cuotas</td>
                            <td className="px-2 py-2 border border-gray-300">Ingresos generados por cuotas de socios</td>
                            <td className="px-2 py-2 border border-gray-300 text-gray-400">-</td>
-                           <td className="px-2 py-2 border border-gray-300 text-gray-400">-</td>
                          </tr>
                          <tr className="bg-green-50">
                            <td className="px-2 py-2 border border-gray-300 font-medium text-green-700">general</td>
                            <td className="px-2 py-2 border border-gray-300">Gastos Operativos</td>
                            <td className="px-2 py-2 border border-gray-300">Gastos necesarios para el funcionamiento</td>
-                           <td className="px-2 py-2 border border-gray-300 text-gray-400">-</td>
                            <td className="px-2 py-2 border border-gray-300 text-gray-400">-</td>
                          </tr>
                          <tr className="bg-blue-50">
@@ -401,34 +333,18 @@ subconcepto,Torneo Apertura,Torneo inicio temporada,Ingresos por Eventos,Torneos
                            <td className="px-2 py-2 border border-gray-300">Cuotas Mensuales</td>
                            <td className="px-2 py-2 border border-gray-300">Cuotas regulares de socios</td>
                            <td className="px-2 py-2 border border-gray-300 font-medium">Ingresos por Cuotas</td>
-                           <td className="px-2 py-2 border border-gray-300 text-gray-400">-</td>
                          </tr>
                          <tr className="bg-blue-50">
                            <td className="px-2 py-2 border border-gray-300 font-medium text-blue-700">concepto</td>
                            <td className="px-2 py-2 border border-gray-300">Servicios Básicos</td>
                            <td className="px-2 py-2 border border-gray-300">Electricidad agua gas internet</td>
                            <td className="px-2 py-2 border border-gray-300 font-medium">Gastos Operativos</td>
-                           <td className="px-2 py-2 border border-gray-300 text-gray-400">-</td>
-                         </tr>
-                         <tr className="bg-purple-50">
-                           <td className="px-2 py-2 border border-gray-300 font-medium text-purple-700">subconcepto</td>
-                           <td className="px-2 py-2 border border-gray-300">Cuotas Juveniles</td>
-                           <td className="px-2 py-2 border border-gray-300">Cuotas categorías juveniles</td>
-                           <td className="px-2 py-2 border border-gray-300 font-medium">Ingresos por Cuotas</td>
-                           <td className="px-2 py-2 border border-gray-300 font-medium">Cuotas Mensuales</td>
-                         </tr>
-                         <tr className="bg-purple-50">
-                           <td className="px-2 py-2 border border-gray-300 font-medium text-purple-700">subconcepto</td>
-                           <td className="px-2 py-2 border border-gray-300">Electricidad</td>
-                           <td className="px-2 py-2 border border-gray-300">Factura mensual electricidad</td>
-                           <td className="px-2 py-2 border border-gray-300 font-medium">Gastos Operativos</td>
-                           <td className="px-2 py-2 border border-gray-300 font-medium">Servicios Básicos</td>
                          </tr>
                        </tbody>
                      </table>
                    </div>
                    <div className="mt-3 text-xs text-gray-600">
-                     <p><strong>💡 Nota:</strong> Los colores indican la jerarquía: <span className="text-green-600">Verde = Generales</span>, <span className="text-blue-600">Azul = Conceptos</span>, <span className="text-purple-600">Morado = Subconceptos</span></p>
+                     <p><strong>💡 Nota:</strong> Los colores indican la jerarquía: <span className="text-green-600">Verde = Generales</span>, <span className="text-blue-600">Azul = Conceptos</span></p>
                    </div>
                  </div>
                )}
@@ -454,7 +370,7 @@ subconcepto,Torneo Apertura,Torneo inicio temporada,Ingresos por Eventos,Torneos
             <div className="bg-white border border-gray-200 rounded-lg p-4">
               <h4 className="font-medium text-gray-900 mb-4">📊 Resultados de la Importación</h4>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div className="bg-green-50 p-3 rounded-lg">
                   <h5 className="font-medium text-green-800">✅ Generales Creados</h5>
                   <p className="text-2xl font-bold text-green-600">{importResults.generales.created.length}</p>
@@ -478,24 +394,12 @@ subconcepto,Torneo Apertura,Torneo inicio temporada,Ingresos por Eventos,Torneos
                     </div>
                   )}
                 </div>
-                
-                <div className="bg-purple-50 p-3 rounded-lg">
-                  <h5 className="font-medium text-purple-800">✅ Subconceptos Creados</h5>
-                  <p className="text-2xl font-bold text-purple-600">{importResults.subconceptos.created.length}</p>
-                  {importResults.subconceptos.created.length > 0 && (
-                    <div className="mt-2 text-xs text-purple-700">
-                      {importResults.subconceptos.created.map(item => (
-                        <div key={item.id}>• {item.name}</div>
-                      ))}
-                    </div>
-                  )}
-                </div>
               </div>
 
-              {([...importResults.generales.errors, ...importResults.conceptos.errors, ...importResults.subconceptos.errors].length > 0) && (
+              {([...importResults.generales.errors, ...importResults.conceptos.errors].length > 0) && (
                 <div className="bg-red-50 p-4 rounded-lg">
                   <h5 className="font-medium text-red-800 mb-2">
-                    ⚠️ Errores Encontrados ({[...importResults.generales.errors, ...importResults.conceptos.errors, ...importResults.subconceptos.errors].length})
+                    ⚠️ Errores Encontrados ({[...importResults.generales.errors, ...importResults.conceptos.errors].length})
                   </h5>
                   <div className="space-y-2">
                     {importResults.generales.errors.length > 0 && (
@@ -518,22 +422,12 @@ subconcepto,Torneo Apertura,Torneo inicio temporada,Ingresos por Eventos,Torneos
                         </div>
                       </div>
                     )}
-                    {importResults.subconceptos.errors.length > 0 && (
-                      <div>
-                        <h6 className="font-medium text-red-700">Subconceptos:</h6>
-                        <div className="text-sm text-red-600 ml-4">
-                          {importResults.subconceptos.errors.map((error, index) => (
-                            <p key={index}>• {error}</p>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
                   <div className="mt-3 text-sm text-red-700">
                     <p><strong>💡 Consejos:</strong></p>
                     <ul className="list-disc list-inside ml-4 space-y-1">
-                      <li>Verifica que los nombres de generales y conceptos existan</li>
-                      <li>Asegúrate de importar en orden: generales → conceptos → subconceptos</li>
+                      <li>Verifica que los nombres de generales existan para los conceptos</li>
+                      <li>Asegúrate de importar en orden: generales → conceptos</li>
                       <li>Revisa que no haya duplicados en el archivo</li>
                     </ul>
                   </div>
