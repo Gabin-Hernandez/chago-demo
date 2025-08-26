@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import AdminLayout from "../../../components/layout/AdminLayout";
 import GeneralModal from "../../../components/forms/GeneralModal";
 import CsvImportModal from "../../../components/forms/CsvImportModal";
+import MassiveCsvImportModal from "../../../components/forms/MassiveCsvImportModal";
 import { generalService } from "../../../lib/services/generalService";
 import { useAuth } from "../../../context/AuthContext";
 
@@ -15,6 +16,7 @@ export default function GeneralesPage() {
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
+  const [isMassiveImportModalOpen, setIsMassiveImportModalOpen] = useState(false);
   const [editingGeneral, setEditingGeneral] = useState(null);
   const [filter, setFilter] = useState("all"); // all, entrada, salida
   const [searchTerm, setSearchTerm] = useState("");
@@ -79,6 +81,10 @@ export default function GeneralesPage() {
     await loadGenerals(); // Reload the list after CSV import
   };
 
+  const handleMassiveImportSuccess = async () => {
+    await loadGenerals(); // Reload the list after massive import
+  };
+
   const filteredGenerals = generals.filter((general) => {
     const matchesFilter = filter === "all" || general.type === filter;
     const matchesSearch = general.name
@@ -133,6 +139,25 @@ export default function GeneralesPage() {
                 />
               </svg>
               Importar CSV
+            </button>
+            <button
+              onClick={() => setIsMassiveImportModalOpen(true)}
+              className="inline-flex items-center px-4 py-2 border border-purple-300 rounded-md shadow-sm text-sm font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+            >
+              <svg
+                className="-ml-1 mr-2 h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                />
+              </svg>
+              Importación Masiva
             </button>
             <button
               onClick={handleCreateGeneral}
@@ -349,6 +374,12 @@ export default function GeneralesPage() {
         isOpen={isCsvModalOpen}
         onClose={() => setIsCsvModalOpen(false)}
         onSuccess={handleCsvImportSuccess}
+      />
+      
+      <MassiveCsvImportModal
+        isOpen={isMassiveImportModalOpen}
+        onClose={() => setIsMassiveImportModalOpen(false)}
+        onSuccess={handleMassiveImportSuccess}
       />
     </AdminLayout>
   );

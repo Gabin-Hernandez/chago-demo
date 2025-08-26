@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import AdminLayout from "../../../components/layout/AdminLayout";
 import ConceptModal from "../../../components/forms/ConceptModal";
+import ConceptCsvImportModal from "../../../components/forms/ConceptCsvImportModal";
+import MassiveCsvImportModal from "../../../components/forms/MassiveCsvImportModal";
 import { conceptService } from "../../../lib/services/conceptService";
 import { generalService } from "../../../lib/services/generalService";
 import { useAuth } from "../../../context/AuthContext";
@@ -18,6 +20,8 @@ export default function ConceptosPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
+  const [isMassiveImportModalOpen, setIsMassiveImportModalOpen] = useState(false);
   const [editingConcept, setEditingConcept] = useState(null);
   const [filterGeneral, setFilterGeneral] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
@@ -85,6 +89,14 @@ export default function ConceptosPage() {
     await loadData(); // Reload the list
   };
 
+  const handleCsvImportSuccess = async () => {
+    await loadData(); // Reload the list after CSV import
+  };
+
+  const handleMassiveImportSuccess = async () => {
+    await loadData(); // Reload the list after massive import
+  };
+
   const getGeneralName = (generalId) => {
     const general = generals.find(g => g.id === generalId);
     return general ? general.name : 'General no encontrado';
@@ -132,25 +144,65 @@ export default function ConceptosPage() {
               Gestiona los conceptos asociados a generales
             </p>
           </div>
-          <button
-            onClick={handleCreateConcept}
-            className="mt-4 sm:mt-0 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
-          >
-            <svg
-              className="-ml-1 mr-2 h-5 w-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+          <div className="mt-4 sm:mt-0 flex space-x-3">
+            <button
+              onClick={() => setIsCsvModalOpen(true)}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-              />
-            </svg>
-            Nuevo Concepto
-          </button>
+              <svg
+                className="-ml-1 mr-2 h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"
+                />
+              </svg>
+              Importar CSV
+            </button>
+            <button
+              onClick={() => setIsMassiveImportModalOpen(true)}
+              className="inline-flex items-center px-4 py-2 border border-purple-300 rounded-md shadow-sm text-sm font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+            >
+              <svg
+                className="-ml-1 mr-2 h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                />
+              </svg>
+              Importación Masiva
+            </button>
+            <button
+              onClick={handleCreateConcept}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
+            >
+              <svg
+                className="-ml-1 mr-2 h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                />
+              </svg>
+              Nuevo Concepto
+            </button>
+          </div>
         </div>
 
         {/* Filters */}
@@ -353,6 +405,20 @@ export default function ConceptosPage() {
         onClose={() => setIsModalOpen(false)}
         onSuccess={handleModalSuccess}
         initialData={editingConcept}
+      />
+
+      {/* CSV Import Modal */}
+      <ConceptCsvImportModal
+        isOpen={isCsvModalOpen}
+        onClose={() => setIsCsvModalOpen(false)}
+        onSuccess={handleCsvImportSuccess}
+      />
+      
+      {/* Massive CSV Import Modal */}
+      <MassiveCsvImportModal
+        isOpen={isMassiveImportModalOpen}
+        onClose={() => setIsMassiveImportModalOpen(false)}
+        onSuccess={handleMassiveImportSuccess}
       />
     </AdminLayout>
   );
