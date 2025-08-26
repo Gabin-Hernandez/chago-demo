@@ -186,7 +186,7 @@ const Ingresos = () => {
                 <div>
                   <div className="flex items-center space-x-2">
                     <h1 className="text-2xl font-bold text-gray-900">
-                      Ingreso - {currentMonthName}
+                      Ingresos - {currentMonthName}
                     </h1>
                     <AdvancedDateSelector
                       currentDate={currentDate}
