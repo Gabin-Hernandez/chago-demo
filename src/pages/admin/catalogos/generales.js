@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import AdminLayout from "../../../components/layout/AdminLayout";
 import GeneralModal from "../../../components/forms/GeneralModal";
+import CsvImportModal from "../../../components/forms/CsvImportModal";
 import { generalService } from "../../../lib/services/generalService";
 import { useAuth } from "../../../context/AuthContext";
 
@@ -13,6 +14,7 @@ export default function GeneralesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
   const [editingGeneral, setEditingGeneral] = useState(null);
   const [filter, setFilter] = useState("all"); // all, entrada, salida
   const [searchTerm, setSearchTerm] = useState("");
@@ -73,6 +75,10 @@ export default function GeneralesPage() {
     await loadGenerals(); // Reload the list
   };
 
+  const handleCsvImportSuccess = async () => {
+    await loadGenerals(); // Reload the list after CSV import
+  };
+
   const filteredGenerals = generals.filter((general) => {
     const matchesFilter = filter === "all" || general.type === filter;
     const matchesSearch = general.name
@@ -108,25 +114,46 @@ export default function GeneralesPage() {
               Gestiona las categorías generales para ingresos y gastos
             </p>
           </div>
-          <button
-            onClick={handleCreateGeneral}
-            className="mt-4 sm:mt-0 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
-          >
-            <svg
-              className="-ml-1 mr-2 h-5 w-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+          <div className="mt-4 sm:mt-0 flex flex-col sm:flex-row gap-2">
+            <button
+              onClick={() => setIsCsvModalOpen(true)}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-              />
-            </svg>
-            Nuevo General
-          </button>
+              <svg
+                className="-ml-1 mr-2 h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"
+                />
+              </svg>
+              Importar CSV
+            </button>
+            <button
+              onClick={handleCreateGeneral}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
+            >
+              <svg
+                className="-ml-1 mr-2 h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                />
+              </svg>
+              Nuevo General
+            </button>
+          </div>
         </div>
 
         {/* Filters */}
@@ -310,12 +337,18 @@ export default function GeneralesPage() {
         )}
       </div>
 
-      {/* Modal */}
+      {/* Modals */}
       <GeneralModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSuccess={handleModalSuccess}
         initialData={editingGeneral}
+      />
+      
+      <CsvImportModal
+        isOpen={isCsvModalOpen}
+        onClose={() => setIsCsvModalOpen(false)}
+        onSuccess={handleCsvImportSuccess}
       />
     </AdminLayout>
   );
