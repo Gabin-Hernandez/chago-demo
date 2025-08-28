@@ -48,6 +48,7 @@ const TransactionDetail = () => {
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [deleteReason, setDeleteReason] = useState("");
+  const [deleteReasonError, setDeleteReasonError] = useState("");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   useEffect(() => {
@@ -57,13 +58,20 @@ const TransactionDetail = () => {
   }, [id]);
 
   const handleDelete = async () => {
+    // Validar que el motivo sea obligatorio
+    if (!deleteReason.trim()) {
+      setDeleteReasonError("El motivo de eliminación es obligatorio");
+      return;
+    }
+
     if (!confirm("¿Estás seguro de que deseas eliminar esta transacción? Esta acción no se puede deshacer.")) {
       return;
     }
 
     try {
       setDeleting(true);
-      
+      setDeleteReasonError(""); // Limpiar error anterior
+
       // Delete the transaction and let the service handle logging
       await transactionService.delete(id, user);
       // Log extra metadata with reason
@@ -74,7 +82,7 @@ const TransactionDetail = () => {
           entityId: id,
           userId: user?.uid,
           userName: user?.displayName || user?.email || "Usuario",
-          details: `Motivo de eliminación: ${deleteReason || 'No especificado'}`,
+          details: `Motivo de eliminación: ${deleteReason.trim()}`,
         });
       } catch (e) {
         console.error('Error logging delete reason:', e);
@@ -145,6 +153,14 @@ const TransactionDetail = () => {
 
   const handlePaymentUpdate = (updatedPayments) => {
     setPayments(Array.isArray(updatedPayments) ? updatedPayments : []);
+  };
+
+  const handleDeleteReasonChange = (value) => {
+    setDeleteReason(value);
+    // Limpiar error cuando el usuario empiece a escribir
+    if (deleteReasonError && value.trim()) {
+      setDeleteReasonError("");
+    }
   };
 
   // Utility functions
@@ -628,7 +644,11 @@ const TransactionDetail = () => {
           </button>
 
           <button
-            onClick={() => setShowDeleteModal(true)}
+            onClick={() => {
+              setDeleteReasonError(""); // Limpiar errores previos
+              setDeleteReason(""); // Limpiar campo
+              setShowDeleteModal(true);
+            }}
             disabled={deleting}
             className="flex items-center space-x-2 px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
           >
@@ -655,27 +675,47 @@ const TransactionDetail = () => {
             <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
               <div className="p-4 border-b">
                 <h3 className="text-lg font-semibold text-gray-900">Confirmar eliminación</h3>
-                <p className="text-sm text-gray-600 mt-1">Esta acción no se puede deshacer.</p>
+                <p className="text-sm text-gray-600 mt-1">
+                  Esta acción no se puede deshacer.
+                  <span className="block mt-1 text-amber-600 font-medium">
+                    ⚠️ El motivo de eliminación es obligatorio
+                  </span>
+                </p>
               </div>
               <div className="p-4 space-y-3">
                 <label htmlFor="deleteReasonModal" className="block text-sm font-medium text-gray-700">
-                  Motivo de eliminación (opcional)
+                  Motivo de eliminación <span className="text-red-500">*</span>
                 </label>
                 <textarea
                   id="deleteReasonModal"
                   name="deleteReasonModal"
                   value={deleteReason}
-                  onChange={(e) => setDeleteReason(e.target.value)}
+                  onChange={(e) => handleDeleteReasonChange(e.target.value)}
                   rows={4}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-blue-500"
-                  placeholder="Escribe el motivo..."
+                  className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-orange-500 focus:border-blue-500 ${
+                    deleteReasonError
+                      ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+                      : 'border-gray-300'
+                  }`}
+                  placeholder="Escribe el motivo de eliminación..."
                   disabled={deleting}
+                  required
                 />
+                {deleteReasonError && (
+                  <p className="text-sm text-red-600 mt-1">{deleteReasonError}</p>
+                )}
+                <p className="text-xs text-gray-500">
+                  Este campo es obligatorio para mantener un registro de auditoría.
+                </p>
               </div>
               <div className="p-4 border-t flex justify-end space-x-3">
                 <button
                   type="button"
-                  onClick={() => setShowDeleteModal(false)}
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setDeleteReasonError("");
+                    setDeleteReason("");
+                  }}
                   disabled={deleting}
                   className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:ring-2 focus:ring-gray-500"
                 >
@@ -684,8 +724,12 @@ const TransactionDetail = () => {
                 <button
                   type="button"
                   onClick={handleDelete}
-                  disabled={deleting}
-                  className="flex items-center px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:ring-2 focus:ring-red-500"
+                  disabled={deleting || !deleteReason.trim()}
+                  className={`flex items-center px-4 py-2 text-sm font-medium text-white rounded-md focus:ring-2 focus:ring-red-500 ${
+                    deleting || !deleteReason.trim()
+                      ? 'bg-gray-400 cursor-not-allowed'
+                      : 'bg-red-600 hover:bg-red-700'
+                  }`}
                 >
                   {deleting ? (
                     <>
