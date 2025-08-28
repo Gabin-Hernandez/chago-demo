@@ -6,6 +6,10 @@ import { useAuth } from "../../../context/AuthContext";
 import { useToast } from "../../../components/ui/Toast";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { generalService } from "../../../lib/services/generalService";
+import { conceptService } from "../../../lib/services/conceptService";
+import { subconceptService } from "../../../lib/services/subconceptService";
+import { providerService } from "../../../lib/services/providerService";
 import {
   FileText,
   Edit,
@@ -41,6 +45,78 @@ const LogsPage = () => {
     setSelectedLog(log);
     setShowDetailsModal(true);
   };
+
+  // Función para comparar datos y obtener cambios
+  const getChanges = (previousData, currentData) => {
+    const changes = [];
+    const fieldsToCompare = [
+      { key: 'amount', label: 'Monto', format: (val) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(val) },
+      { key: 'description', label: 'Descripción' },
+      { key: 'date', label: 'Fecha', format: (val) => formatDate(val) },
+      { key: 'generalId', label: 'General', format: (val) => getGeneralName(val) },
+      { key: 'conceptId', label: 'Concepto', format: (val) => getConceptName(val) },
+      { key: 'subconceptId', label: 'Sub-concepto', format: (val) => getSubconceptName(val) },
+      { key: 'providerId', label: 'Proveedor', format: (val) => getProviderName(val) },
+      { key: 'division', label: 'División' },
+      { key: 'status', label: 'Estado' }
+    ];
+
+    fieldsToCompare.forEach(({ key, label, format }) => {
+      const prevVal = previousData[key];
+      const currVal = currentData[key];
+
+      // Comparar valores considerando diferentes tipos de datos
+      let hasChanged = false;
+      if (prevVal !== currVal) {
+        if (key === 'date') {
+          // Para fechas, comparar timestamps
+          const prevDate = prevVal?.toDate ? prevVal.toDate().getTime() : new Date(prevVal).getTime();
+          const currDate = currVal?.toDate ? currVal.toDate().getTime() : new Date(currVal).getTime();
+          hasChanged = prevDate !== currDate;
+        } else if (key === 'amount') {
+          // Para montos, comparar como números
+          hasChanged = parseFloat(prevVal) !== parseFloat(currVal);
+        } else {
+          hasChanged = prevVal !== currVal;
+        }
+      }
+
+      if (hasChanged) {
+        changes.push({
+          field: label,
+          from: format ? format(prevVal) : (prevVal || 'No definido'),
+          to: format ? format(currVal) : (currVal || 'No definido')
+        });
+      }
+    });
+
+    return changes;
+  };
+
+  // Funciones auxiliares para obtener nombres
+  const getGeneralName = (id) => {
+    if (!id) return 'No definido';
+    const general = generals.find(g => g.id === id);
+    return general ? general.name : `General ${id}`;
+  };
+
+  const getConceptName = (id) => {
+    if (!id) return 'No definido';
+    const concept = concepts.find(c => c.id === id);
+    return concept ? concept.name : `Concepto ${id}`;
+  };
+
+  const getSubconceptName = (id) => {
+    if (!id) return 'No definido';
+    const subconcept = subconcepts.find(s => s.id === id);
+    return subconcept ? subconcept.name : `Sub-concepto ${id}`;
+  };
+
+  const getProviderName = (id) => {
+    if (!id) return 'No definido';
+    const provider = providers.find(p => p.id === id);
+    return provider ? provider.name : `Proveedor ${id}`;
+  };
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -62,6 +138,12 @@ const LogsPage = () => {
     docHistory: [], // Historial de documentos para navegación hacia atrás
   });
 
+  // Estados para datos de referencia
+  const [generals, setGenerals] = useState([]);
+  const [concepts, setConcepts] = useState([]);
+  const [subconcepts, setSubconcepts] = useState([]);
+  const [providers, setProviders] = useState([]);
+
   // Check if user can manage settings
   const canManageSettings = checkPermission("canManageSettings");
 
@@ -72,7 +154,28 @@ const LogsPage = () => {
     }
 
     loadLogs();
+    loadReferenceData();
   }, [canManageSettings, router]);
+
+  // Cargar datos de referencia (generales, conceptos, subconceptos, proveedores)
+  const loadReferenceData = async () => {
+    try {
+      const [generalsData, conceptsData, subconceptsData, providersData] = await Promise.all([
+        generalService.getAll(),
+        conceptService.getAll(),
+        subconceptService.getAll(),
+        providerService.getAll()
+      ]);
+
+      setGenerals(generalsData);
+      setConcepts(conceptsData);
+      setSubconcepts(subconceptsData);
+      setProviders(providersData);
+    } catch (error) {
+      console.error("Error loading reference data:", error);
+      // No mostrar error al usuario, solo usar valores por defecto
+    }
+  };
 
   const loadLogs = async (page = 1, append = false) => {
     try {
@@ -514,11 +617,11 @@ const LogsPage = () => {
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        {log.entityType === "transaction" && log.action === "delete" && (
+                        {log.entityType === "transaction" && (log.action === "delete" || log.action === "update") && (
                           <button
                             onClick={() => handleViewDetails(log)}
                             className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded transition-colors"
-                            title="Ver detalles de la transacción eliminada"
+                            title={`Ver detalles de ${log.action === 'update' ? 'la actualización' : 'la eliminación'}`}
                           >
                             <Eye className="w-3 h-3 mr-1" />
                             Ver detalles
@@ -570,7 +673,7 @@ const LogsPage = () => {
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold text-gray-900 flex items-center">
                     <Eye className="w-5 h-5 mr-2 text-blue-600" />
-                    Detalles de Transacción Eliminada
+                    Detalles de {selectedLog.action === 'update' ? 'Actualización' : selectedLog.action === 'delete' ? 'Eliminación' : 'Transacción'}
                   </h3>
                   <button
                     onClick={() => setShowDetailsModal(false)}
@@ -617,12 +720,48 @@ const LogsPage = () => {
                   </div>
                 </div>
 
-                {/* Datos de la Transacción Original */}
+                {/* Cambios Realizados (solo para actualizaciones) */}
+                {selectedLog.action === 'update' && selectedLog.previousData && selectedLog.entityData && (
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-900 mb-3 flex items-center">
+                      <Edit className="w-4 h-4 mr-2 text-orange-600" />
+                      Cambios Realizados
+                    </h4>
+                    <div className="bg-orange-50 rounded-lg p-4">
+                      {(() => {
+                        const changes = getChanges(selectedLog.previousData, selectedLog.entityData);
+                        return changes.length > 0 ? (
+                          <div className="space-y-3">
+                            {changes.map((change, index) => (
+                              <div key={index} className="flex items-center justify-between py-2 border-b border-orange-200 last:border-b-0">
+                                <div className="flex-1">
+                                  <span className="text-sm font-medium text-orange-800">{change.field}:</span>
+                                </div>
+                                <div className="flex-1 text-right space-y-1">
+                                  <div className="text-xs text-red-600 line-through">
+                                    Antes: {change.from}
+                                  </div>
+                                  <div className="text-xs text-green-600 font-medium">
+                                    Después: {change.to}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-orange-700">No se encontraron cambios específicos en los datos.</p>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                )}
+
+                {/* Datos de la Transacción */}
                 {selectedLog.entityData && (
                   <div>
                     <h4 className="text-sm font-medium text-gray-900 mb-3 flex items-center">
                       <BarChart3 className="w-4 h-4 mr-2 text-green-600" />
-                      Datos de la Transacción Original
+                      {selectedLog.action === 'update' ? 'Datos Actuales de la Transacción' : 'Datos de la Transacción Original'}
                     </h4>
                     <div className="bg-gray-50 rounded-lg p-4">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -697,20 +836,108 @@ const LogsPage = () => {
                   </div>
                 )}
 
-                {/* Motivo de Eliminación */}
-                <div>
-                  <h4 className="text-sm font-medium text-gray-900 mb-3 flex items-center">
-                    <StickyNote className="w-4 h-4 mr-2 text-orange-600" />
-                    Motivo de Eliminación
-                  </h4>
-                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                    {selectedLog.deletionReason ? (
-                      <p className="text-sm text-orange-800">{selectedLog.deletionReason}</p>
-                    ) : (
-                      <p className="text-sm text-orange-600 italic">No se especificó motivo de eliminación</p>
-                    )}
+                {/* Datos Anteriores (solo para actualizaciones) */}
+                {selectedLog.action === 'update' && selectedLog.previousData && (
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-900 mb-3 flex items-center">
+                      <BarChart3 className="w-4 h-4 mr-2 text-red-600" />
+                      Datos Anteriores de la Transacción
+                    </h4>
+                    <div className="bg-red-50 rounded-lg p-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          {selectedLog.previousData.type && (
+                            <div>
+                              <span className="text-xs text-gray-500">Tipo:</span>
+                              <p className="text-sm font-medium">
+                                {selectedLog.previousData.type === "entrada" ? (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    <CheckCircle className="w-3 h-3 mr-1" />
+                                    Ingreso
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                    <AlertCircle className="w-3 h-3 mr-1" />
+                                    Gasto
+                                  </span>
+                                )}
+                              </p>
+                            </div>
+                          )}
+                          {selectedLog.previousData.amount && (
+                            <div>
+                              <span className="text-xs text-gray-500">Monto:</span>
+                              <p className="text-sm font-medium">
+                                {new Intl.NumberFormat('es-MX', {
+                                  style: 'currency',
+                                  currency: 'MXN'
+                                }).format(selectedLog.previousData.amount)}
+                              </p>
+                            </div>
+                          )}
+                          {selectedLog.previousData.date && (
+                            <div>
+                              <span className="text-xs text-gray-500">Fecha:</span>
+                              <p className="text-sm font-medium">{formatDate(selectedLog.previousData.date)}</p>
+                            </div>
+                          )}
+                          {selectedLog.previousData.description && (
+                            <div>
+                              <span className="text-xs text-gray-500">Descripción:</span>
+                              <p className="text-sm font-medium">{selectedLog.previousData.description}</p>
+                            </div>
+                          )}
+                        </div>
+                        <div className="space-y-2">
+                          {selectedLog.previousData.status && (
+                            <div>
+                              <span className="text-xs text-gray-500">Estado:</span>
+                              <p className="text-sm font-medium">{selectedLog.previousData.status}</p>
+                            </div>
+                          )}
+                          {selectedLog.previousData.generalId && (
+                            <div>
+                              <span className="text-xs text-gray-500">General:</span>
+                              <p className="text-sm font-medium">{getGeneralName(selectedLog.previousData.generalId)}</p>
+                            </div>
+                          )}
+                          {selectedLog.previousData.conceptId && (
+                            <div>
+                              <span className="text-xs text-gray-500">Concepto:</span>
+                              <p className="text-sm font-medium">{getConceptName(selectedLog.previousData.conceptId)}</p>
+                            </div>
+                          )}
+                          {(selectedLog.previousData.providerId || selectedLog.previousData.division) && (
+                            <div>
+                              <span className="text-xs text-gray-500">Proveedor/División:</span>
+                              <p className="text-sm font-medium">
+                                {selectedLog.previousData.providerId ? getProviderName(selectedLog.previousData.providerId) : 'No definido'}
+                                {selectedLog.previousData.division ? ` / ${selectedLog.previousData.division}` : ''}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {/* Motivo de Eliminación (solo para eliminaciones) */}
+                {selectedLog.action === 'delete' && (
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-900 mb-3 flex items-center">
+                      <StickyNote className="w-4 h-4 mr-2 text-orange-600" />
+                      Motivo de Eliminación
+                    </h4>
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                      {selectedLog.deletionReason ? (
+                        <p className="text-sm text-orange-800">{selectedLog.deletionReason}</p>
+                      ) : (
+                        <p className="text-sm text-orange-600 italic">No se especificó motivo de eliminación</p>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Detalles Técnicos */}
                 <div>
