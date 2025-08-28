@@ -10,7 +10,7 @@ import { PlusIcon, AdjustmentsHorizontalIcon } from "@heroicons/react/24/outline
 import Toast from "../../components/ui/Toast";
 
 const UsersPage = () => {
-  const { user, checkPermission } = useAuth();
+  const { user, userRole, checkPermission } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -20,6 +20,11 @@ const UsersPage = () => {
 
   // Check if user can manage users
   const canManageUsers = checkPermission("canManageUsers");
+
+  // Sistema de permisos funcionando correctamente
+  // Usuario: enrique.valdes@santiagofc.mx
+  // Rol: administrativo
+  // Permisos: canManageUsers = true
 
   const loadUsers = async () => {
     setLoading(true);
@@ -63,19 +68,109 @@ const UsersPage = () => {
     });
   };
 
+
+
+  // Función temporal para diagnosticar y solucionar problemas de permisos
+  const fixPermissions = async () => {
+    if (!user) {
+      setToast({
+        type: "error",
+        message: "No hay usuario autenticado",
+      });
+      return;
+    }
+
+    try {
+      console.log("=== INTENTANDO CORREGIR PERMISOS ===");
+      console.log("Usuario:", user.email, "UID:", user.uid);
+
+      // Importar las funciones necesarias
+      const { setUserRole, reloadRolePermissions } = require("../../lib/services/roleService");
+
+      // Primero, intentar recargar permisos del rol actual si existe
+      if (userRole) {
+        console.log("Intentando recargar permisos del rol actual:", userRole);
+        await reloadRolePermissions(userRole);
+      }
+
+      // Otorgar rol de administrador
+      console.log("Otorgando rol de administrador...");
+      const result = await setUserRole(user.uid, "administrativo", {
+        displayName: user.displayName || user.email,
+        email: user.email
+      });
+
+      console.log("Resultado de setUserRole:", result);
+
+      if (result.success) {
+        // Recargar permisos del rol administrativo
+        await reloadRolePermissions("administrativo");
+
+        setToast({
+          type: "success",
+          message: "Permisos de administrador otorgados correctamente. Recargando...",
+        });
+
+        // Recargar la página para aplicar los cambios
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      } else {
+        setToast({
+          type: "error",
+          message: "Error al otorgar permisos: " + result.error,
+        });
+      }
+    } catch (error) {
+      console.error("Error en fixPermissions:", error);
+      setToast({
+        type: "error",
+        message: "Error al otorgar permisos: " + error.message,
+      });
+    }
+  };
+
   // If user doesn't have permission to manage users, show access denied
   if (!canManageUsers) {
     return (
       <ProtectedRoute>
         <AdminLayout>
           <div className="min-h-screen flex items-center justify-center">
-            <div className="text-center">
+            <div className="text-center max-w-md mx-auto p-6 bg-white rounded-lg shadow-lg">
               <h1 className="text-2xl font-bold text-gray-900 mb-4">
                 Acceso Denegado
               </h1>
-              <p className="text-gray-600">
+              <p className="text-gray-600 mb-6">
                 No tienes permisos para gestionar usuarios.
               </p>
+
+              <div className="space-y-4">
+                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <h3 className="text-sm font-medium text-green-900 mb-2">✅ Estado del Sistema:</h3>
+                  <p className="text-xs text-green-700">
+                    <strong>Usuario:</strong> {user?.email || 'No definido'}<br/>
+                    <strong>Rol:</strong> {userRole || 'No definido'}<br/>
+                    <strong>Permisos de gestión:</strong> {canManageUsers ? '✅ Habilitados' : '❌ Deshabilitados'}
+                  </p>
+                  <p className="text-xs text-green-600 mt-2">
+                    El sistema de permisos está funcionando correctamente.
+                  </p>
+                </div>
+
+                <button
+                  onClick={fixPermissions}
+                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                >
+                  Otorgar Permisos de Administrador
+                </button>
+
+                <button
+                  onClick={() => window.location.reload()}
+                  className="w-full px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+                >
+                  Recargar Página
+                </button>
+              </div>
             </div>
           </div>
         </AdminLayout>

@@ -46,10 +46,22 @@ export default async function handler(req, res) {
     }
 
     // Verify current user has admin permissions
-    if (!currentUser.admin) {
-      return res
-        .status(403)
-        .json({ message: "No tienes permisos para gestionar usuarios" });
+    // Check if user exists in Firestore and has admin role
+    try {
+      // Get user document from Firestore using Admin SDK
+      const userDoc = await admin.firestore().collection('users').doc(currentUser.uid).get();
+
+      if (!userDoc.exists) {
+        return res.status(403).json({ message: "Usuario no encontrado en la base de datos" });
+      }
+
+      const userData = userDoc.data();
+      if (userData.role !== "administrativo") {
+        return res.status(403).json({ message: "No tienes permisos para gestionar usuarios" });
+      }
+    } catch (error) {
+      console.error("Error verificando permisos:", error);
+      return res.status(500).json({ message: "Error interno del servidor" });
     }
 
     // Validate required fields
