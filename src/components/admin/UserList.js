@@ -7,7 +7,7 @@ import {
 } from "@heroicons/react/24/outline";
 
 const UserList = ({ users, currentUserId, onUserUpdated, onEditUser }) => {
-  const { user, ROLES } = useAuth();
+  const { user, userRole, ROLES } = useAuth();
   const [loading, setLoading] = useState({});
 
   const getRoleDisplayName = (role) => {
@@ -133,7 +133,7 @@ const UserList = ({ users, currentUserId, onUserUpdated, onEditUser }) => {
                     )}
                   </div>
 
-                  {userData.id !== currentUserId && (
+                  {(userData.id !== currentUserId || userRole === ROLES.ADMINISTRATIVO) && (
                     <div className="flex items-center space-x-2">
                       <button
                         onClick={() => onEditUser(userData)}

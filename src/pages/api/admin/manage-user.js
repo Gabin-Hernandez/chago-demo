@@ -45,6 +45,7 @@ export default async function handler(req, res) {
 
     // Verify current user has admin permissions
     // Check if user exists in Firestore and has admin role
+    let currentUserData;
     try {
       // Get user document from Firestore using Admin SDK
       const userDoc = await admin.firestore().collection('users').doc(currentUser.uid).get();
@@ -53,8 +54,8 @@ export default async function handler(req, res) {
         return res.status(403).json({ message: "Usuario no encontrado en la base de datos" });
       }
 
-      const userData = userDoc.data();
-      if (userData.role !== "administrativo") {
+      currentUserData = userDoc.data();
+      if (currentUserData.role !== "administrativo") {
         return res.status(403).json({ message: "No tienes permisos para gestionar usuarios" });
       }
     } catch (error) {
@@ -63,7 +64,8 @@ export default async function handler(req, res) {
     }
 
     // Check if trying to modify themselves
-    if (currentUser.uid === userId) {
+    // Allow administrators to edit their own profile, but prevent non-admins from self-modification
+    if (currentUser.uid === userId && currentUserData.role !== "administrativo") {
       return res
         .status(400)
         .json({ message: "No puedes modificar tu propio usuario" });
