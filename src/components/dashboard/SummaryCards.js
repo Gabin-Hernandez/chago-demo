@@ -48,7 +48,10 @@ const SummaryCards = ({ summary }) => {
       icon: DocumentTextIcon,
       color: 'text-primary',
       bgColor: 'bg-orange-50',
-      isCount: true
+      isCount: true,
+      showSplit: true,
+      entradasCount: summary.entradasCount,
+      salidasCount: summary.salidasCount
     }
   ];
 
@@ -74,7 +77,20 @@ const SummaryCards = ({ summary }) => {
                 <p className={`text-2xl font-bold ${card.color}`}>
                   {card.isCount ? card.value : formatCurrency(card.value)}
                 </p>
-                {card.count !== undefined && (
+                {card.showSplit ? (
+                  <div className="mt-2 flex items-center justify-center space-x-4 text-xs">
+                    <div className="flex items-center space-x-1">
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      <span className="text-green-600">Ingresos:</span>
+                      <span className="font-medium text-green-600">{card.entradasCount}</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                      <span className="text-red-600">Gastos:</span>
+                      <span className="font-medium text-red-600">{card.salidasCount}</span>
+                    </div>
+                  </div>
+                ) : card.count !== undefined && (
                   <p className="text-sm text-muted-foreground mt-1">
                     {card.count} transacciones
                   </p>
