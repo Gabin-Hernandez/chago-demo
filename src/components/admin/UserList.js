@@ -143,40 +143,46 @@ const UserList = ({ users, currentUserId, onUserUpdated, onEditUser }) => {
                         <PencilIcon className="h-5 w-5" />
                       </button>
 
-                      <button
-                        onClick={() =>
-                          confirmAction(
-                            userData.id,
-                            userData.isActive !== false ? "disable" : "enable",
-                            userData.displayName || userData.email
-                          )
-                        }
-                        disabled={loading[userData.id]}
-                        className="relative inline-flex items-center cursor-pointer"
-                      >
-                        <div
-                          className={`w-11 h-6 rounded-full transition-colors duration-200 ease-in-out ${
-                            userData.isActive !== false
-                              ? "bg-blue-600"
-                              : "bg-gray-200"
-                          } ${
-                            loading[userData.id] ? "opacity-50" : ""
-                          }`}
+                      <div className="flex items-center space-x-1">
+                        <button
+                          onClick={() =>
+                            confirmAction(
+                              userData.id,
+                              userData.isActive !== false ? "disable" : "enable",
+                              userData.displayName || userData.email
+                            )
+                          }
+                          disabled={loading[userData.id]}
+                          className="relative inline-flex items-center cursor-pointer"
+                          title={userData.isActive !== false ? "Deshabilitar usuario (no podrá acceder)" : "Habilitar usuario (podrá acceder nuevamente)"}
                         >
                           <div
-                            className={`absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow transform transition-transform duration-200 ${
+                            className={`w-11 h-6 rounded-full transition-colors duration-200 ease-in-out ${
                               userData.isActive !== false
-                                ? "translate-x-5"
-                                : "translate-x-0"
+                                ? "bg-blue-600"
+                                : "bg-gray-200"
+                            } ${
+                              loading[userData.id] ? "opacity-50" : ""
                             }`}
-                          />
-                        </div>
-                        {loading[userData.id] && (
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="animate-spin h-4 w-4 border-2 border-blue-600 rounded-full border-t-transparent"></div>
+                          >
+                            <div
+                              className={`absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow transform transition-transform duration-200 ${
+                                userData.isActive !== false
+                                  ? "translate-x-5"
+                                  : "translate-x-0"
+                              }`}
+                            />
                           </div>
-                        )}
-                      </button>
+                          {loading[userData.id] && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="animate-spin h-4 w-4 border-2 border-blue-600 rounded-full border-t-transparent"></div>
+                            </div>
+                          )}
+                        </button>
+                        <span className="text-xs text-gray-500 whitespace-nowrap">
+                          {userData.isActive !== false ? "Desactivar" : "Activar"}
+                        </span>
+                      </div>
 
                       <button
                         onClick={() =>
