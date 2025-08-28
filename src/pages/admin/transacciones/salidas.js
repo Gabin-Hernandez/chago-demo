@@ -15,6 +15,7 @@ const SolicitudesPago = () => {
   const router = useRouter();
   const { checkPermission } = useAuth();
   const [showForm, setShowForm] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [concepts, setConcepts] = useState([]);
   const [providers, setProviders] = useState([]);
@@ -86,10 +87,19 @@ const SolicitudesPago = () => {
   };
 
   const handleTransactionSuccess = (transaction) => {
-    // Add the new transaction to the list
-    setTransactions((prev) => [transaction, ...prev]);
+    if (editingTransaction) {
+      // Update existing transaction
+      setTransactions((prev) =>
+        prev.map((t) => (t.id === transaction.id ? transaction : t))
+      );
+      toast.success("Gasto actualizado exitosamente");
+    } else {
+      // Add new transaction to the list
+      setTransactions((prev) => [transaction, ...prev]);
+    }
     setShowForm(false);
-    // The toast is already shown in the TransactionForm component
+    setEditingTransaction(null);
+    // The toast is already shown in the TransactionForm component for new transactions
   };
 
   const handleNewTransaction = () => {
@@ -98,6 +108,12 @@ const SolicitudesPago = () => {
 
   const handleCancelForm = () => {
     setShowForm(false);
+    setEditingTransaction(null);
+  };
+
+  const handleEditTransaction = (transaction) => {
+    setEditingTransaction(transaction);
+    setShowForm(true);
   };
 
   const getConceptName = (conceptId) => {
@@ -338,16 +354,19 @@ const SolicitudesPago = () => {
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           strokeWidth={2}
-                          d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                          d={editingTransaction ? "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" : "M12 6v6m0 0v6m0-6h6m-6 0H6"}
                         />
                       </svg>
                     </div>
                     <div>
                       <h3 className="text-lg font-semibold text-white">
-                        Nuevo Gasto
+                        {editingTransaction ? "Editar Gasto" : "Nuevo Gasto"}
                       </h3>
                       <p className="text-red-100 text-sm">
-                        Completa los campos para crear un nuevo gasto
+                        {editingTransaction
+                          ? "Modifica los campos para actualizar el gasto"
+                          : "Completa los campos para crear un nuevo gasto"
+                        }
                       </p>
                     </div>
                   </div>
@@ -374,6 +393,7 @@ const SolicitudesPago = () => {
               <div className="p-6">
                 <TransactionForm
                   type="salida"
+                  initialData={editingTransaction}
                   onSuccess={handleTransactionSuccess}
                   onCancel={handleCancelForm}
                 />
@@ -600,14 +620,26 @@ const SolicitudesPago = () => {
                                 )}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <button
-                                  onClick={() =>
-                                    handleViewDetails(transaction.id)
-                                  }
-                                  className="text-primary hover:text-primary/80 transition-colors"
-                                >
-                                  Ver Detalles
-                                </button>
+                                <div className="flex items-center space-x-3">
+                                  {canManageTransactions && (
+                                    <button
+                                      onClick={() => handleEditTransaction(transaction)}
+                                      className="text-blue-600 hover:text-blue-800 transition-colors flex items-center"
+                                      title="Editar gasto"
+                                    >
+                                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                      </svg>
+                                      Editar
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={() => handleViewDetails(transaction.id)}
+                                    className="text-primary hover:text-primary/80 transition-colors"
+                                  >
+                                    Ver Detalles
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           ))}
@@ -652,12 +684,26 @@ const SolicitudesPago = () => {
                           </div>
                         </div>
                         <div className="flex justify-between items-center">
-                          <button
-                            onClick={() => handleViewDetails(transaction.id)}
-                            className="text-sm text-primary hover:text-primary/80 transition-colors"
-                          >
-                            Ver Detalles
-                          </button>
+                          <div className="flex space-x-3">
+                            {canManageTransactions && (
+                              <button
+                                onClick={() => handleEditTransaction(transaction)}
+                                className="text-sm text-blue-600 hover:text-blue-800 transition-colors flex items-center"
+                                title="Editar gasto"
+                              >
+                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                                Editar
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleViewDetails(transaction.id)}
+                              className="text-sm text-primary hover:text-primary/80 transition-colors"
+                            >
+                              Ver Detalles
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}

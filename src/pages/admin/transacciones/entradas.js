@@ -14,6 +14,7 @@ const Ingresos = () => {
   const router = useRouter();
   const { checkPermission } = useAuth();
   const [showForm, setShowForm] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [concepts, setConcepts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -72,10 +73,19 @@ const Ingresos = () => {
   };
 
   const handleTransactionSuccess = (transaction) => {
-    // Add the new transaction to the list
-    setTransactions((prev) => [transaction, ...prev]);
+    if (editingTransaction) {
+      // Update existing transaction
+      setTransactions((prev) =>
+        prev.map((t) => (t.id === transaction.id ? transaction : t))
+      );
+      toast.success("Ingreso actualizado exitosamente");
+    } else {
+      // Add new transaction to the list
+      setTransactions((prev) => [transaction, ...prev]);
+    }
     setShowForm(false);
-    // The toast is already shown in the TransactionForm component
+    setEditingTransaction(null);
+    // The toast is already shown in the TransactionForm component for new transactions
   };
 
   const handleNewTransaction = () => {
@@ -84,6 +94,12 @@ const Ingresos = () => {
 
   const handleCancelForm = () => {
     setShowForm(false);
+    setEditingTransaction(null);
+  };
+
+  const handleEditTransaction = (transaction) => {
+    setEditingTransaction(transaction);
+    setShowForm(true);
   };
 
   const getConceptName = (conceptId) => {
@@ -229,7 +245,7 @@ const Ingresos = () => {
             <div className="bg-background rounded-lg border border-border p-6">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-lg font-medium text-foreground">
-                  Nuevo Ingreso
+                  {editingTransaction ? "Editar Ingreso" : "Nuevo Ingreso"}
                 </h3>
                 <button
                   onClick={handleCancelForm}
@@ -252,6 +268,7 @@ const Ingresos = () => {
               </div>
               <TransactionForm
                 type="entrada"
+                initialData={editingTransaction}
                 onSuccess={handleTransactionSuccess}
                 onCancel={handleCancelForm}
               />
@@ -416,14 +433,28 @@ const Ingresos = () => {
                                 {getStatusBadge(transaction.status)}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <button
-                                  onClick={() =>
-                                    handleViewDetails(transaction.id)
-                                  }
-                                  className="text-primary hover:text-primary/80 transition-colors"
-                                >
-                                  Ver Detalles
-                                </button>
+                                <div className="flex items-center space-x-3">
+                                  {canManageTransactions && (
+                                    <button
+                                      onClick={() => handleEditTransaction(transaction)}
+                                      className="text-blue-600 hover:text-blue-800 transition-colors flex items-center"
+                                      title="Editar ingreso"
+                                    >
+                                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                      </svg>
+                                      Editar
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={() =>
+                                      handleViewDetails(transaction.id)
+                                    }
+                                    className="text-primary hover:text-primary/80 transition-colors"
+                                  >
+                                    Ver Detalles
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           ))}
@@ -463,12 +494,26 @@ const Ingresos = () => {
                           </div>
                         </div>
                         <div className="flex justify-between items-center">
-                          <button
-                            onClick={() => handleViewDetails(transaction.id)}
-                            className="text-sm text-primary hover:text-primary/80 transition-colors"
-                          >
-                            Ver Detalles
-                          </button>
+                          <div className="flex space-x-3">
+                            {canManageTransactions && (
+                              <button
+                                onClick={() => handleEditTransaction(transaction)}
+                                className="text-sm text-blue-600 hover:text-blue-800 transition-colors flex items-center"
+                                title="Editar ingreso"
+                              >
+                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                                Editar
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleViewDetails(transaction.id)}
+                              className="text-sm text-primary hover:text-primary/80 transition-colors"
+                            >
+                              Ver Detalles
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
