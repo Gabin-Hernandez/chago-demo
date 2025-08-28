@@ -27,6 +27,11 @@ const LogsPage = () => {
   const router = useRouter();
   const { user, checkPermission } = useAuth();
   const toast = useToast();
+
+  // Función para obtener el tipo de transacción desde diferentes fuentes
+  const getTransactionType = (log) => {
+    return logService.extractTransactionType(log);
+  };
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -451,13 +456,29 @@ const LogsPage = () => {
                         {getEntityTypeText(log.entityType)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {log.entityType === "transaction" && log.transactionType ? 
-                          (log.transactionType === "entrada" ? 
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Ingreso</span> : 
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Gasto</span>
-                          ) : 
+                        {log.entityType === "transaction" ? (() => {
+                          const transactionType = getTransactionType(log);
+                          return transactionType ? (
+                            transactionType === "entrada" ? (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                <CheckCircle className="w-3 h-3 mr-1" />
+                                Ingreso
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                <AlertCircle className="w-3 h-3 mr-1" />
+                                Gasto
+                              </span>
+                            )
+                          ) : (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                              <AlertCircle className="w-3 h-3 mr-1" />
+                              Tipo no disponible
+                            </span>
+                          );
+                        })() : (
                           "-"
-                        }
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {log.entityId}

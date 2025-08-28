@@ -72,21 +72,30 @@ const TransactionDetail = () => {
       setDeleting(true);
       setDeleteReasonError(""); // Limpiar error anterior
 
-      // Delete the transaction and let the service handle logging
-      await transactionService.delete(id, user);
-      // Log extra metadata with reason
+      // Log the deletion reason first (before deletion to avoid conflicts)
       try {
+        const transactionType = transaction?.type || 'desconocido';
+        console.log('Transaction data for logging:', {
+          id: transaction?.id,
+          type: transaction?.type,
+          transactionType: transactionType
+        });
+
         await logService.create({
           action: "delete_reason",
           entityType: "transaction",
           entityId: id,
           userId: user?.uid,
           userName: user?.displayName || user?.email || "Usuario",
+          transactionType: transactionType, // Agregar el tipo de transacción
           details: `Motivo de eliminación: ${deleteReason.trim()}`,
         });
       } catch (e) {
         console.error('Error logging delete reason:', e);
       }
+
+      // Delete the transaction (this will create another log automatically)
+      await transactionService.delete(id, user);
       setShowDeleteModal(false);
       router.push("/admin/transacciones/historial");
     } catch (error) {

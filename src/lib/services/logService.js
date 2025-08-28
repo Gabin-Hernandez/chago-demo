@@ -125,10 +125,22 @@ export const logService = {
     try {
       const userId = user.uid;
       const userName = user.displayName || user.email || "Usuario desconocido";
-      
+
+      console.log('LogTransactionDeletion - TransactionData:', {
+        id: transactionData?.id,
+        type: transactionData?.type,
+        hasType: !!transactionData?.type
+      });
+
       // Determinar si es ingreso o gasto
-      const transactionType = transactionData.type === "entrada" ? "ingreso" : "gasto";
-      
+      const transactionType = transactionData?.type || 'desconocido';
+      const transactionTypeLabel = transactionType === "entrada" ? "ingreso" : (transactionType === "salida" ? "gasto" : transactionType);
+
+      console.log('LogTransactionDeletion - Final data:', {
+        transactionType,
+        transactionTypeLabel
+      });
+
       return await this.create({
         action: "delete",
         entityType: "transaction",
@@ -136,14 +148,40 @@ export const logService = {
         entityData: transactionData,
         userId,
         userName,
-        transactionType: transactionData.type, // Guardar el tipo de transacción
-        details: `Usuario ${userName} eliminó un ${transactionType} (${transactionId})`
+        transactionType: transactionType, // Guardar el tipo de transacción original
+        details: `Usuario ${userName} eliminó un ${transactionTypeLabel} (${transactionId})`
       });
     } catch (error) {
       console.error("Error logging transaction deletion:", error);
       // Don't throw error to avoid blocking the main operation
       return null;
     }
+  },
+
+  // Helper method to extract transaction type from various sources
+  extractTransactionType(log) {
+    // 1. Direct transactionType field
+    if (log.transactionType && log.transactionType !== 'desconocido') {
+      return log.transactionType;
+    }
+
+    // 2. From entityData
+    if (log.entityData && log.entityData.type) {
+      return log.entityData.type;
+    }
+
+    // 3. From nested entityData
+    if (log.entityData && log.entityData.entityData && log.entityData.entityData.type) {
+      return log.entityData.entityData.type;
+    }
+
+    // 4. Try to infer from details text
+    if (log.details) {
+      if (log.details.includes('ingreso')) return 'entrada';
+      if (log.details.includes('gasto')) return 'salida';
+    }
+
+    return null;
   },
 
   // Log a transaction creation
