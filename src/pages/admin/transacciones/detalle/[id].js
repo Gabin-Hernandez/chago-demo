@@ -157,6 +157,12 @@ const TransactionDetail = () => {
   }, [id]);
 
   const handleDelete = async () => {
+    // Check user role first
+    if (['contador', 'director_general'].includes(userRole)) {
+      setError("No tienes permisos para eliminar transacciones");
+      return;
+    }
+
     // Validar que el motivo sea obligatorio
     if (!deleteReason.trim()) {
       setDeleteReasonError("El motivo de eliminación es obligatorio");
@@ -170,6 +176,7 @@ const TransactionDetail = () => {
     try {
       setDeleting(true);
       setDeleteReasonError(""); // Limpiar error anterior
+      setError(""); // Clear any previous errors
 
       // Delete the transaction with deletion reason
       await transactionService.delete(id, user, deleteReason.trim());
