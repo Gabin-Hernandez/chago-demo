@@ -12,7 +12,7 @@
   - Created `logoUtils.js` with image loading functionality
   - Updated PDF templates to load logo from `http://localhost:3000/logo.webp`
   - Added fallback to styled text logo if image fails to load
-
+a
 ### 3. ✅ Async Function Updates
 - **Problem**: Logo loading requires async operationss
 - **Solution**: Made `addPageHeader` function async and updated all calls
