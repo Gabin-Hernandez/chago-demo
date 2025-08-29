@@ -896,7 +896,7 @@ const PaymentManager = ({
                     }
                     
                     // Importar el template de correo
-                    const { createEmailTemplate, createPaymentReceiptContent } = await import('../../../lib/emailTemplates');
+                    const { createEmailTemplate, createPaymentReceiptContent } = await import('../../lib/emailTemplates');
                     
                     const subject = `Comprobante de pago - ${conceptName}${txId ? ` - #${String(txId).slice(-8)}` : ""}`;
                     const detailUrl = txId
