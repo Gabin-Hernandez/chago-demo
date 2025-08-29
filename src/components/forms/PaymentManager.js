@@ -11,8 +11,9 @@ const PaymentManager = ({
   provider,
   transaction,
 }) => {
-  const { checkPermission } = useAuth();
+  const { checkPermission, userRole } = useAuth();
   const canDeletePayments = checkPermission("canDeletePayments");
+  const canRegisterPayments = !['director', 'director_general'].includes(userRole);
   
   const [payments, setPayments] = useState([]);
   const [paymentSummary, setPaymentSummary] = useState(null);
@@ -389,12 +390,14 @@ const PaymentManager = ({
           <h3 className="text-lg font-medium text-gray-900">
             Historial de Pagos
           </h3>
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
-          >
-            {showForm ? "Cancelar" : "Registrar Pago"}
-          </button>
+          {canRegisterPayments && (
+            <button
+              onClick={() => setShowForm(!showForm)}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
+            >
+              {showForm ? "Cancelar" : "Registrar Pago"}
+            </button>
+          )}
         </div>
       )}
 
