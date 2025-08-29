@@ -5,7 +5,7 @@ Mantener colores consistentes entre todas las visualizaciones (gráfico de paste
 
 ## 🌈 Paleta de Colores Definida
 
-### Colores Principales (20 colores únicos)
+### Colores Principales (20 colores únicos)s
 ```javascript
 const COLOR_PALETTE = [
   '#3B82F6', // Azul brillante
