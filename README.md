@@ -8,7 +8,7 @@ a
 npm run deva
 # oraas
 yarn devaa
-# oraaaa
+# oraaaaa
 pnpm devaa
 # or
 bun devs
