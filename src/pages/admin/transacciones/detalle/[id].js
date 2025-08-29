@@ -31,7 +31,105 @@ import {
   Paperclip,
   StickyNote,
   Trash,
+  X,
+  Copy,
+  Banknote,
 } from "lucide-react";
+
+// Modal component for displaying provider details
+const ProviderDetailsModal = ({ isOpen, onClose, provider }) => {
+  if (!isOpen) return null;
+
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text);
+    // You might want to add a toast notification here
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+        <div className="flex justify-between items-center border-b border-gray-200 p-4">
+          <h3 className="text-lg font-medium text-gray-900">
+            Información del Proveedor
+          </h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-500"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        
+        <div className="p-4 space-y-4">
+          <div>
+            <h4 className="font-medium text-gray-900">{provider.name}</h4>
+            <p className="text-sm text-gray-500">RFC: {provider.rfc || 'No especificado'}</p>
+            <p className="text-sm text-gray-500">Teléfono: {provider.phone || 'No especificado'}</p>
+            <p className="text-sm text-gray-500">Dirección: {provider.address || 'No especificada'}</p>
+          </div>
+          
+          {provider.bankAccounts && provider.bankAccounts.length > 0 ? (
+            <div>
+              <h4 className="font-medium text-gray-900 mb-2">Cuentas Bancarias</h4>
+              <div className="space-y-4">
+                {provider.bankAccounts.map((account, index) => (
+                  <div key={index} className="border border-gray-200 rounded-lg p-3">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-medium text-gray-900">
+                          <Banknote className="inline-block w-4 h-4 mr-1" />
+                          {account.bank || 'Banco no especificado'}
+                        </p>
+                        {account.accountNumber && (
+                          <div className="flex items-center mt-1">
+                            <span className="text-sm text-gray-500">Número de cuenta: {account.accountNumber}</span>
+                            <button 
+                              onClick={() => copyToClipboard(account.accountNumber)}
+                              className="ml-1 text-blue-500 hover:text-blue-700"
+                              title="Copiar número de cuenta"
+                            >
+                              <Copy className="w-3 h-3" />
+                            </button>
+                          </div>
+                        )}
+                        {account.clabe && (
+                          <div className="flex items-center mt-1">
+                            <span className="text-sm text-gray-500">CLABE: {account.clabe}</span>
+                            <button 
+                              onClick={() => copyToClipboard(account.clabe)}
+                              className="ml-1 text-blue-500 hover:text-blue-700"
+                              title="Copiar CLABE"
+                            >
+                              <Copy className="w-3 h-3" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-4 text-gray-500">
+              No hay cuentas bancarias registradas para este proveedor.
+            </div>
+          )}
+        </div>
+        
+        <div className="bg-gray-50 px-4 py-3 sm:px-6 flex justify-end space-x-3 rounded-b-lg">
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+          >
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const TransactionDetail = () => {
   const router = useRouter();
@@ -48,6 +146,7 @@ const TransactionDetail = () => {
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [deleteReason, setDeleteReason] = useState("");
+  const [showProviderModal, setShowProviderModal] = useState(false);
   const [deleteReasonError, setDeleteReasonError] = useState("");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
@@ -378,7 +477,18 @@ const TransactionDetail = () => {
                   <Building className="w-4 h-4 text-primary mt-0.5" />
                   <div>
                     <div className="text-xs text-muted-foreground">Proveedor</div>
-                    <div className="text-sm font-medium">{provider.name}</div>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm font-medium">{provider.name}</span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowProviderModal(true);
+                        }}
+                        className="inline-flex items-center px-2 py-0.5 border border-transparent text-xs font-medium rounded text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                      >
+                        VER CUENTAS
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -735,6 +845,15 @@ const TransactionDetail = () => {
           </div>
         )}
       </div>
+      
+      {/* Provider Details Modal */}
+      {provider && (
+        <ProviderDetailsModal
+          isOpen={showProviderModal}
+          onClose={() => setShowProviderModal(false)}
+          provider={provider}
+        />
+      )}
     </AdminLayout>
   );
 };
