@@ -105,10 +105,11 @@ export const paymentService = {
             }
           }
           
-          // Calculate remaining balance
-          const totalPaid = paymentData.amount;
+          // Calculate remaining balance using the total paid amount
           const totalAmount = transaction ? transaction.amount : 0;
-          const remainingBalance = totalAmount - totalPaid;
+          const paymentSummary = await this.getPaymentSummary(transactionId);
+          const totalPaid = paymentSummary.totalPaid; // This includes all payments including current one
+          const remainingBalance = paymentSummary.balance; // This is already calculated in getPaymentSummary
           
           const subject = `Se ha registrado un pago de $${paymentData.amount.toFixed(2)} - ${conceptName}`;
           
