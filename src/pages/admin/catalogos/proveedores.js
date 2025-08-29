@@ -285,7 +285,7 @@ const Proveedores = () => {
                         >
                           <PencilIcon className="h-4 w-4" />
                         </button>
-                        {!['contador', 'director_general'].includes(userRole) && (
+                        {userRole !== 'contador' && (
                           <button
                             onClick={() => {
                               setSelectedProvider(provider);
