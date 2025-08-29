@@ -8,8 +8,17 @@ import { generalService } from "../../../lib/services/generalService";
 import { useAuth } from "../../../context/AuthContext";
 
 export default function GeneralesPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, userRole, loading: authLoading } = useAuth();
   const router = useRouter();
+  
+  // Debug: Log user object to check role
+  useEffect(() => {
+    if (user) {
+      console.log('Current user object:', user);
+      console.log('User role from AuthContext:', userRole);
+      console.log('User role from user object:', user.role || user.userRole || 'No role found');
+    }
+  }, [user, userRole]);
 
   const [generals, setGenerals] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -66,7 +75,7 @@ export default function GeneralesPage() {
     }
 
     try {
-      await generalService.delete(general.id);
+      await generalService.delete(general.id, { role: user.userRole });
       await loadGenerals(); // Reload the list
     } catch (error) {
       alert(`Error al eliminar el general: ${error.message}`);
@@ -324,12 +333,14 @@ export default function GeneralesPage() {
                             >
                               Editar
                             </button>
-                            <button
-                              onClick={() => handleDeleteGeneral(general)}
-                              className="text-red-600 hover:text-red-900"
-                            >
-                              Eliminar
-                            </button>
+                            {userRole !== 'contador' && userRole !== 'director_general' && (
+                              <button
+                                onClick={() => handleDeleteGeneral(general)}
+                                className="text-red-600 hover:text-red-900"
+                              >
+                                Eliminar
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
