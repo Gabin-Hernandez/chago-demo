@@ -20,7 +20,7 @@ export const createEmailTemplate = ({ title, content, footerText }) => {
       ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
       : '');
   const baseUrl = resolvedBase ? resolvedBase.replace(/\/$/, '') : '';
-  const logoUrl = `https://santiago-fc.vercel.app/logo.webp`;
+  const logoUrl = `https://santiago-fc.vercel.app/logo.jpeg`;
   
   // Default footer text if not provided
   const defaultFooter = 'Este es un correo automático. Por favor no responda a este mensaje.';
