@@ -214,6 +214,11 @@ export const transactionService = {
   // Delete transaction
   async delete(id, user, deletionReason = null) {
     try {
+      // Check if user has permission to delete (contador role cannot delete)
+      if (user && user.role === 'contador') {
+        throw new Error("No tienes permisos para eliminar transacciones");
+      }
+
       // Get the transaction data before deleting it
       const docRef = doc(db, COLLECTION_NAME, id);
       const docSnap = await getDoc(docRef);
