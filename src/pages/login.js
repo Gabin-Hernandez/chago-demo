@@ -29,44 +29,44 @@ const LoginPage = () => {
   }
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left side - Login Form */}
-      <div className="flex-1 flex flex-col justify-center py-12 px-4 sm:px-6 lg:flex-none lg:px-20 xl:px-24">
-        <div className="mx-auto w-full max-w-sm lg:w-96">
-          <div className="text-center">
-            <img  
-              className="mx-auto h-44 w-auto"
-              src="/logo.webp"
-              alt="Your Company"
-            />
-            <h2 className="text-3xl font-bold text-gray-900 mt-5">
-              Bienvenido <br/> <span className="text-primary">Sistema CHAGO</span>
-            </h2>
-          </div>
-
-          <div className="mt-8">
-            <LoginForm />
-          </div>
-        </div>
-      </div>
-
-      {/* Right side - Football Image */}
-      <div className="hidden lg:block relative flex-1">
+    <div className="min-h-screen flex flex-col lg:flex-row">
+      {/* Values section - Always visible - Now first on mobile */}
+      <div className="relative flex-1 min-h-[30vh] lg:min-h-auto lg:order-2">
         <img
           className="absolute inset-0 h-full w-full object-cover"
           src="/soccer-ball-goal.webp"
           alt="Football field"
         />
         <div className="absolute inset-0 bg-primary/30"></div>
-        <div className="absolute bottom-8 left-8 right-8">
-          <div className="bg-white bg-opacity-90 backdrop-blur-sm rounded-lg p-6">
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              Sistema de Gestión Financiera
+        <div className="absolute inset-4 lg:bottom-8 lg:left-8 lg:right-8 lg:top-auto flex items-center lg:items-end">
+          <div className="bg-white/50 backdrop-blur-sm rounded-lg p-4 lg:p-6 w-full shadow-2xl">
+            <h3 className="text-lg lg:text-xl font-semibold text-gray-900 mb-2">
+              Humildad, Responsabilidad, Agradecimiento y Lealtad
             </h3>
-            <p className="text-gray-700">
-              Controla y administra todas las entradas y salidas de tu
-              organización deportiva de manera eficiente y segura.
+            <p className="text-sm lg:text-base text-gray-700">
+              Valores fundamentales que guían nuestra gestión deportiva
+              hacia el éxito y la excelencia.
             </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Left side - Login Form - Now second on mobile */}
+      <div className="flex-1 flex flex-col justify-center py-8 lg:py-12 px-4 sm:px-6 lg:flex-none lg:px-20 xl:px-24 lg:order-1">
+        <div className="mx-auto w-full max-w-sm lg:w-96">
+          <div className="text-center">
+            <img  
+              className="mx-auto h-24 lg:h-32 w-auto"
+              src="/logo.webp"
+              alt="Your Company"
+            />
+            <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mt-3 lg:mt-5">
+              Bienvenido <br/> <span className="text-primary">Sistema CHAGO</span>
+            </h2>
+          </div>
+
+          <div className="mt-6 lg:mt-8">
+            <LoginForm />
           </div>
         </div>
       </div>
