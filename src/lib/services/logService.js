@@ -368,21 +368,29 @@ export const logService = {
   // Log a transaction creation
   async logTransactionCreation({ user, transactionId, transactionData }) {
     try {
+      if (!user) {
+        console.warn("No user provided for transaction creation log");
+        return null;
+      }
+      
       const userId = user.uid;
       const userName = user.displayName || user.email || "Usuario desconocido";
       
       // Determinar si es ingreso o gasto
-      const transactionType = transactionData.type === "entrada" ? "ingreso" : "gasto";
+      const transactionType = transactionData?.type === "entrada" ? "ingreso" : "gasto";
+      
+      // Ensure we have a valid transaction ID
+      const safeTransactionId = transactionId || transactionData?.id || 'unknown';
       
       return await this.create({
         action: "create",
         entityType: "transaction",
-        entityId: transactionId,
-        entityData: transactionData,
+        entityId: safeTransactionId,
+        entityData: transactionData || {},
         userId,
         userName,
-        transactionType: transactionData.type, // Guardar el tipo de transacción
-        details: `Usuario ${userName} creó un ${transactionType} (${transactionId})`
+        transactionType: transactionData?.type || 'unknown',
+        details: `Usuario ${userName} creó un ${transactionType} (${safeTransactionId})`
       });
     } catch (error) {
       console.error("Error logging transaction creation:", error);
