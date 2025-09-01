@@ -171,44 +171,48 @@ export const reportService = {
           }
         }
 
-        // Concept breakdown
-        if (!stats.conceptBreakdown[conceptName]) {
-          stats.conceptBreakdown[conceptName] = {
-            entradas: 0,
-            salidas: 0,
-            total: 0,
-            count: 0
-          };
+        // Concept breakdown - only for current period transactions
+        if (!isCarryover) {
+          if (!stats.conceptBreakdown[conceptName]) {
+            stats.conceptBreakdown[conceptName] = {
+              entradas: 0,
+              salidas: 0,
+              total: 0,
+              count: 0
+            };
+          }
+          
+          if (transaction.type === 'entrada') {
+            stats.conceptBreakdown[conceptName].entradas += amount;
+          } else {
+            stats.conceptBreakdown[conceptName].salidas += amount;
+          }
+          stats.conceptBreakdown[conceptName].total += amount;
+          stats.conceptBreakdown[conceptName].count++;
         }
-        
-        if (transaction.type === 'entrada') {
-          stats.conceptBreakdown[conceptName].entradas += amount;
-        } else {
-          stats.conceptBreakdown[conceptName].salidas += amount;
-        }
-        stats.conceptBreakdown[conceptName].total += amount;
-        stats.conceptBreakdown[conceptName].count++;
 
-        // General breakdown
-        if (!stats.generalBreakdown[generalName]) {
-          stats.generalBreakdown[generalName] = {
-            entradas: 0,
-            salidas: 0,
-            total: 0,
-            count: 0
-          };
+        // General breakdown - only for current period transactions
+        if (!isCarryover) {
+          if (!stats.generalBreakdown[generalName]) {
+            stats.generalBreakdown[generalName] = {
+              entradas: 0,
+              salidas: 0,
+              total: 0,
+              count: 0
+            };
+          }
+          
+          if (transaction.type === 'entrada') {
+            stats.generalBreakdown[generalName].entradas += amount;
+          } else {
+            stats.generalBreakdown[generalName].salidas += amount;
+          }
+          stats.generalBreakdown[generalName].total += amount;
+          stats.generalBreakdown[generalName].count++;
         }
-        
-        if (transaction.type === 'entrada') {
-          stats.generalBreakdown[generalName].entradas += amount;
-        } else {
-          stats.generalBreakdown[generalName].salidas += amount;
-        }
-        stats.generalBreakdown[generalName].total += amount;
-        stats.generalBreakdown[generalName].count++;
 
-        // Provider breakdown (only for salidas)
-        if (transaction.type === 'salida' && transaction.providerId) {
+        // Provider breakdown (only for salidas) - only for current period transactions
+        if (!isCarryover && transaction.type === 'salida' && transaction.providerId) {
           if (!stats.providerBreakdown[providerName]) {
             stats.providerBreakdown[providerName] = {
               amount: 0,
@@ -222,24 +226,26 @@ export const reportService = {
           stats.providerBreakdown[providerName].pendingAmount += transaction.balance || 0;
         }
 
-        // Monthly breakdown
-        if (!stats.monthlyBreakdown[month]) {
-          stats.monthlyBreakdown[month] = {
-            entradas: 0,
-            salidas: 0,
-            balance: 0,
-            count: 0
-          };
+        // Monthly breakdown - only for current period transactions
+        if (!isCarryover) {
+          if (!stats.monthlyBreakdown[month]) {
+            stats.monthlyBreakdown[month] = {
+              entradas: 0,
+              salidas: 0,
+              balance: 0,
+              count: 0
+            };
+          }
+          
+          if (transaction.type === 'entrada') {
+            stats.monthlyBreakdown[month].entradas += amount;
+          } else {
+            stats.monthlyBreakdown[month].salidas += amount;
+          }
+          stats.monthlyBreakdown[month].balance = 
+            stats.monthlyBreakdown[month].entradas - stats.monthlyBreakdown[month].salidas;
+          stats.monthlyBreakdown[month].count++;
         }
-        
-        if (transaction.type === 'entrada') {
-          stats.monthlyBreakdown[month].entradas += amount;
-        } else {
-          stats.monthlyBreakdown[month].salidas += amount;
-        }
-        stats.monthlyBreakdown[month].balance = 
-          stats.monthlyBreakdown[month].entradas - stats.monthlyBreakdown[month].salidas;
-        stats.monthlyBreakdown[month].count++;
       });
 
       // Calculate derived stats

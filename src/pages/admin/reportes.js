@@ -8,6 +8,8 @@ import { dashboardService } from "../../lib/services/dashboardService";
 import { generalService } from "../../lib/services/generalService";
 import { conceptService } from "../../lib/services/conceptService";
 import { subconceptService } from "../../lib/services/subconceptService";
+import { transactionService } from "../../lib/services/transactionService";
+import { providerService } from "../../lib/services/providerService";
 import useReportStore from "../../lib/stores/reportStore";
 import {
   CalendarIcon,
@@ -16,6 +18,8 @@ import {
   CurrencyDollarIcon,
   DocumentTextIcon,
   ClockIcon,
+  XMarkIcon,
+  EyeIcon,
 } from "@heroicons/react/24/outline";
 
 const Reportes = () => {
@@ -26,6 +30,8 @@ const Reportes = () => {
   const [transactions, setTransactions] = useState([]);
   const [stats, setStats] = useState(null);
   const [generals, setGenerals] = useState([]);
+  const [showCarryoverPanel, setShowCarryoverPanel] = useState(false);
+  const [carryoverTransactions, setCarryoverTransactions] = useState([]);
 
   const [filters, setFilters] = useState({
     startDate: "",
@@ -128,6 +134,47 @@ const Reportes = () => {
       error("Error al generar el reporte");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadCarryoverTransactions = async () => {
+    try {
+      if (!filters.startDate) return;
+
+      // Get all pending transactions from before the start date
+      const allTransactions = await transactionService.getAll({
+        type: 'salida',
+        status: 'pendiente'
+      });
+
+      // Filter pending transactions that are from before the selected period
+      const pendingFromPrevious = allTransactions.filter(transaction => {
+        const transactionDate = transaction.date?.toDate ? transaction.date.toDate() : new Date(transaction.date);
+        const startDate = new Date(filters.startDate);
+        
+        return transactionDate < startDate && transaction.status === 'pendiente';
+      });
+
+      // Get reference data for display
+      const [conceptsData, providersData, generalsData] = await Promise.all([
+        conceptService.getAll(),
+        providerService.getAll(),
+        generalService.getAll()
+      ]);
+
+      // Enrich transactions with reference data
+      const enrichedTransactions = pendingFromPrevious.map(transaction => ({
+        ...transaction,
+        conceptName: conceptsData.find(c => c.id === transaction.conceptId)?.name || 'Sin concepto',
+        providerName: providersData.find(p => p.id === transaction.providerId)?.name || 'Sin proveedor',
+        generalName: generalsData.find(g => g.id === transaction.generalId)?.name || 'Sin categoría'
+      }));
+
+      setCarryoverTransactions(enrichedTransactions);
+      setShowCarryoverPanel(true);
+    } catch (err) {
+      console.error("Error loading carryover transactions:", err);
+      error("Error al cargar transacciones de arrastre");
     }
   };
 
@@ -601,6 +648,17 @@ const Reportes = () => {
               <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                 <div className="flex justify-between items-start">
                   <h4 className="font-medium text-red-800">Pendientes</h4>
+                  {stats.paymentStatus.pendiente.carryover > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs text-red-700 hover:bg-red-100 -mt-1 -mr-1"
+                      onClick={loadCarryoverTransactions}
+                    >
+                      <EyeIcon className="h-3 w-3 mr-1" />
+                      Ver arrastre
+                    </Button>
+                  )}
                 </div>
                 <p className="text-2xl font-bold text-red-600">
                   {stats.paymentStatus.pendiente.count}
@@ -625,9 +683,14 @@ const Reportes = () => {
         {stats && Object.keys(stats.generalBreakdown).length > 0 && 
          Object.entries(stats.generalBreakdown).some(([general, data]) => showIncomeInBreakdown || data.salidas > 0) && (
           <div className="bg-background rounded-lg border border-border p-6">
-            <h3 className="text-lg font-semibold text-foreground mb-4">
-              Desglose por Categoría General
-            </h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-foreground">
+                Desglose por Categoría General
+              </h3>
+              <p className="text-sm text-muted-foreground italic">
+                Solo período: {currentMonthName}
+              </p>
+            </div>
 
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-border">
@@ -692,9 +755,14 @@ const Reportes = () => {
         {stats && Object.keys(stats.conceptBreakdown).length > 0 && 
          Object.entries(stats.conceptBreakdown).some(([concept, data]) => showIncomeInBreakdown || data.salidas > 0) && (
           <div className="bg-background rounded-lg border border-border p-6">
-            <h3 className="text-lg font-semibold text-foreground mb-4">
-              Desglose por Concepto
-            </h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-foreground">
+                Desglose por Concepto
+              </h3>
+              <p className="text-sm text-muted-foreground italic">
+                Solo período: {currentMonthName}
+              </p>
+            </div>
 
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-border">
@@ -759,9 +827,14 @@ const Reportes = () => {
         {/* Provider Breakdown (for salidas) */}
         {stats && Object.keys(stats.providerBreakdown).length > 0 && (
           <div className="bg-background rounded-lg border border-border p-6">
-            <h3 className="text-lg font-semibold text-foreground mb-4">
-              Desglose por Proveedor (Gastos)
-            </h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-foreground">
+                Desglose por Proveedor (Gastos)
+              </h3>
+              <p className="text-sm text-muted-foreground italic">
+                Solo período: {currentMonthName}
+              </p>
+            </div>
 
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-border">
@@ -838,6 +911,92 @@ const Reportes = () => {
           </div>
         )}
       </div>
+
+      {/* Carryover Transactions Side Panel */}
+      {showCarryoverPanel && (
+        <div className="fixed inset-0 z-50 overflow-hidden">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-xs" onClick={() => setShowCarryoverPanel(false)} />
+          <div className="absolute right-0 top-0 h-full w-96 max-w-full bg-background shadow-xl">
+            <div className="flex h-full flex-col">
+              {/* Header */}
+              <div className="px-6 py-4 border-b border-border">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-foreground">
+                    Gastos Pendientes de Arrastre
+                  </h3>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowCarryoverPanel(false)}
+                  >
+                    <XMarkIcon className="h-5 w-5" />
+                  </Button>
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Gastos pendientes de períodos anteriores a {currentMonthName}
+                </p>
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 overflow-y-auto px-6 py-4">
+                {carryoverTransactions.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">
+                    No hay gastos pendientes de períodos anteriores
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    {carryoverTransactions.map((transaction) => (
+                      <div
+                        key={transaction.id}
+                        className="border border-border rounded-lg p-4 bg-red-50"
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <h4 className="font-medium text-foreground">
+                            {transaction.conceptName}
+                          </h4>
+                          <span className="text-lg font-bold text-red-600">
+                            {formatCurrency(transaction.amount)}
+                          </span>
+                        </div>
+                        
+                        <div className="space-y-1 text-sm text-muted-foreground">
+                          <p><strong>Proveedor:</strong> {transaction.providerName}</p>
+                          <p><strong>Categoría:</strong> {transaction.generalName}</p>
+                          <p><strong>Fecha:</strong> {
+                            transaction.date?.toDate ? 
+                            transaction.date.toDate().toLocaleDateString('es-ES') :
+                            new Date(transaction.date).toLocaleDateString('es-ES')
+                          }</p>
+                          {transaction.description && (
+                            <p><strong>Descripción:</strong> {transaction.description}</p>
+                          )}
+                          <p><strong>Saldo pendiente:</strong> {formatCurrency(transaction.balance || transaction.amount)}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              {carryoverTransactions.length > 0 && (
+                <div className="px-6 py-4 border-t border-border bg-muted">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">
+                      Total de {carryoverTransactions.length} transacciones
+                    </span>
+                    <span className="font-bold text-red-600">
+                      {formatCurrency(
+                        carryoverTransactions.reduce((sum, t) => sum + (t.balance || t.amount), 0)
+                      )}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 };
