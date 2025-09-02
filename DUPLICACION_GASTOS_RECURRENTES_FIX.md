@@ -3,7 +3,7 @@
 ## Problema Identificado
 
 Al crear un gasto marcado como "recurrente", se estaban generando dos transacciones idénticas:
-1. Una transacción "Manual" - creada directamente por el usuario
+1. Una transacción "Manual" - creada directamente por el usuarioa
 2. Una transacción "Recurrente" - generada automáticamente por el sistema al cargar el dashboard
 
 ## Causa del Problema
