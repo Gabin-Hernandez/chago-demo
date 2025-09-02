@@ -44,7 +44,7 @@ const LoginPage = () => {
               Humildad, Responsabilidad, Agradecimiento y Lealtad
             </h3>
             <p className="text-sm lg:text-base text-gray-700">
-              Valores fundamentales que guían nuestra gestión deportiva
+              Valores fundamentales que guían nuestra gestión administrativa
               hacia el éxito y la excelencia.
             </p>
           </div>
