@@ -159,26 +159,12 @@ const PaymentManager = ({
 
   // Handle file upload
   const handleFileUpload = async (files) => {
-    console.log("Files received in handleFileUpload:", files);
 
-    // Log each file's properties individually
-    files.forEach((file, index) => {
-      console.log(`File ${index}:`, {
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        lastModified: file.lastModified,
-        webkitRelativePath: file.webkitRelativePath,
-      });
-    });
+   
 
     // Create previews for image files
     const filesWithPreviews = await Promise.all(
       files.map(async (file) => {
-        console.log("Processing file:", file.name, file.type, file.size);
-
-        // Create a wrapper object that contains the original File + metadata
-        // WITHOUT modifying the original File object
         const fileWrapper = {
           file: file, // Original File object, completely untouched
           name: file.name,
@@ -189,7 +175,6 @@ const PaymentManager = ({
 
         if (file.type && file.type.startsWith("image/")) {
           const preview = await createImagePreview(file);
-          console.log("Preview created for:", file.name);
           fileWrapper.preview = preview; // Add preview to wrapper, not to File
         }
 
@@ -197,7 +182,6 @@ const PaymentManager = ({
       })
     );
 
-    console.log("Files with previews:", filesWithPreviews);
     setFormFiles((prev) => [...prev, ...filesWithPreviews]);
   };
 
@@ -212,16 +196,13 @@ const PaymentManager = ({
 
   // Handle file removal
   const handleFileRemove = (fileToRemove) => {
-    console.log("Removing file:", fileToRemove);
-    console.log("Current formFiles:", formFiles);
-
+   
     // Find the file by name and remove it
     setFormFiles((prev) => {
       const updatedFiles = prev.filter(
         (file) => file.name !== fileToRemove.fileName
       );
 
-      console.log("Updated files after removal:", updatedFiles);
 
       // Find the actual file object to revoke its preview URL
       const fileToRevoke = prev.find(
@@ -280,15 +261,7 @@ const PaymentManager = ({
         notes: formData.notes,
       };
 
-      // Debug: Log files before sending to service
-      console.log("PaymentManager - Submitting files:", formFiles.map(fileWrapper => ({
-        name: fileWrapper.name,
-        type: fileWrapper.type,
-        size: fileWrapper.size,
-        isFileInstance: fileWrapper.file instanceof File,
-        constructor: fileWrapper.file.constructor.name,
-        hasPreview: !!fileWrapper.preview
-      })));
+      
 
       // Extract original File objects from wrappers
       const originalFiles = formFiles.map(fileWrapper => fileWrapper.file);

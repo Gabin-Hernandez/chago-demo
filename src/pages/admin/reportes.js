@@ -139,21 +139,16 @@ const Reportes = () => {
 
   const loadCarryoverTransactions = async () => {
     try {
-      if (!filters.startDate) return;
-
-      // Get all pending transactions from before the start date
+      // Get ALL pending transactions regardless of date
       const allTransactions = await transactionService.getAll({
         type: 'salida',
         status: 'pendiente'
       });
 
-      // Filter pending transactions that are from before the selected period
-      const pendingFromPrevious = allTransactions.filter(transaction => {
-        const transactionDate = transaction.date?.toDate ? transaction.date.toDate() : new Date(transaction.date);
-        const startDate = new Date(filters.startDate);
-        
-        return transactionDate < startDate && transaction.status === 'pendiente';
-      });
+      // All pending transactions are considered carryover
+      const pendingFromPrevious = allTransactions.filter(transaction => 
+        transaction.status === 'pendiente'
+      );
 
       // Get reference data for display
       const [conceptsData, providersData, generalsData] = await Promise.all([
@@ -555,7 +550,7 @@ const Reportes = () => {
                       {formatCurrency(stats.carryoverBalance)}
                     </p>
                     <p className="text-sm text-orange-600">
-                      Pendientes anteriores
+                      Todos los gastos pendientes
                     </p>
                   </div>
 
@@ -656,7 +651,7 @@ const Reportes = () => {
                       onClick={loadCarryoverTransactions}
                     >
                       <EyeIcon className="h-3 w-3 mr-1" />
-                      Ver arrastre
+                      Ver pendientes
                     </Button>
                   )}
                 </div>
@@ -670,7 +665,7 @@ const Reportes = () => {
                   </p>
                   {stats.paymentStatus.pendiente.carryover > 0 && (
                     <p className="text-xs text-red-500">
-                      Arrastre:{" "}
+                      Pendientes:{" "}
                       {formatCurrency(stats.paymentStatus.pendiente.carryover)}
                     </p>
                   )}
@@ -922,7 +917,7 @@ const Reportes = () => {
               <div className="px-6 py-4 border-b border-border">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold text-foreground">
-                    Gastos Pendientes de Arrastre
+                    Gastos Pendientes
                   </h3>
                   <Button
                     variant="ghost"
@@ -933,7 +928,7 @@ const Reportes = () => {
                   </Button>
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Gastos pendientes de períodos anteriores a {currentMonthName}
+                  Todos los gastos con estado pendiente
                 </p>
               </div>
 
@@ -941,7 +936,7 @@ const Reportes = () => {
               <div className="flex-1 overflow-y-auto px-6 py-4">
                 {carryoverTransactions.length === 0 ? (
                   <p className="text-muted-foreground text-center py-8">
-                    No hay gastos pendientes de períodos anteriores
+                    No hay gastos pendientes en el sistema
                   </p>
                 ) : (
                   <div className="space-y-4">

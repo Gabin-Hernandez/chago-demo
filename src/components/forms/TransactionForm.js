@@ -345,14 +345,11 @@ const TransactionForm = ({
             
             for (let i = 0; i < files.length; i++) {
               const file = files[i];
-              console.log(`Uploading file ${i + 1}/${files.length}:`, file.name);
               
               try {
                 const attachment = await paymentService.uploadFile(file, result.id);
                 attachments.push(attachment);
-                console.log(`File ${file.name} uploaded successfully:`, attachment);
               } catch (fileError) {
-                console.error(`Error uploading file ${file.name}:`, fileError);
                 toast.error(`Error subiendo ${file.name}: ${fileError.message}`);
               }
               
@@ -787,7 +784,6 @@ const TransactionForm = ({
           )}
           <FileUpload
             onUpload={(selectedFiles) => {
-              console.log('Files selected:', selectedFiles);
               setFiles(prev => [...prev, ...selectedFiles]);
             }}
             existingFiles={[]}

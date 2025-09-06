@@ -24,15 +24,12 @@ const RolePermissionsModal = ({ onClose }) => {
         
         if (roleDoc.exists() && roleDoc.data().permissions) {
           // Use permissions from Firestore if they exist
-          console.log('Loaded permissions from Firestore:', roleDoc.data().permissions);
           setPermissions(roleDoc.data().permissions);
         } else {
           // Fall back to default permissions if not in Firestore
-          console.log('Using default permissions from ROLE_PERMISSIONS');
           setPermissions(ROLE_PERMISSIONS[selectedRole] || {});
         }
       } catch (error) {
-        console.error('Error fetching role permissions:', error);
         // Fall back to default permissions on error
         setPermissions(ROLE_PERMISSIONS[selectedRole] || {});
       } finally {
@@ -57,7 +54,6 @@ const RolePermissionsModal = ({ onClose }) => {
       // Set the entire permissions object at once
       setPermissions(newPermissions);
       
-      console.log('Permission toggled:', permission, 'New value:', newPermissions[permission]);
     } catch (error) {
       console.error('Error changing permission:', error);
     }

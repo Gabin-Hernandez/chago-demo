@@ -408,4 +408,41 @@ export const transactionService = {
       throw new Error(`Error al eliminar transacciones del mes: ${error.message}`);
     }
   },
+
+  // Create an initial expense without creating entities in the system
+  async createInitialExpense(transactionData, user) {
+    try {
+      const docRef = await addDoc(collection(db, COLLECTION_NAME), {
+        ...transactionData,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        status: transactionData.status || "aprobado",
+        payments: [],
+        totalPaid: 0,
+        balance: transactionData.amount,
+        isInitialExpense: true, // Mark as initial expense
+        // Use direct names instead of IDs
+        generalId: null,
+        conceptId: null,
+        subconceptId: null,
+        providerId: null
+      });
+
+      const newTransaction = { id: docRef.id, ...transactionData };
+      
+      // Log the initial expense creation
+      if (user) {
+        await logService.logTransactionCreation({
+          user,
+          transactionId: docRef.id,
+          transactionData: newTransaction
+        });
+      }
+
+      return newTransaction;
+    } catch (error) {
+      console.error("Error creating initial expense:", error);
+      throw new Error("Error al crear el gasto inicial");
+    }
+  },
 };

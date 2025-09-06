@@ -115,15 +115,39 @@ const SolicitudesPago = () => {
     router.push(`/admin/transacciones/editar/${transaction.id}`);
   };
 
-  const getConceptName = (conceptId) => {
+  const getConceptName = (conceptId, transaction = null) => {
+    // Si es un gasto inicial con conceptName, usar ese nombre
+    if (transaction?.isInitialExpense && transaction?.conceptName) {
+      return transaction.conceptName;
+    }
+    
     const concept = concepts.find((c) => c.id === conceptId);
     return concept ? concept.name : "N/A";
   };
 
-  const getProviderName = (providerId) => {
+  const getProviderName = (providerId, transaction = null) => {
+    // Si es un gasto inicial con providerName, usar ese nombre
+    if (transaction?.isInitialExpense && transaction?.providerName) {
+      return transaction.providerName;
+    }
+    
     if (!providerId) return "N/A";
     const provider = providers.find((p) => p.id === providerId);
     return provider ? provider.name : "N/A";
+  };
+
+  const getInitialExpenseBadge = (transaction) => {
+    if (transaction.isInitialExpense) {
+      return (
+        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200">
+          <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+          </svg>
+          Inicial
+        </span>
+      );
+    }
+    return null;
   };
 
   const formatCurrency = (amount) => {
@@ -211,8 +235,8 @@ const SolicitudesPago = () => {
     // Si hay un término de búsqueda, filtrar por él
     if (searchTerm) {
       const query = searchTerm.toLowerCase();
-      const conceptName = getConceptName(transaction.conceptId).toLowerCase();
-      const providerName = getProviderName(transaction.providerId).toLowerCase();
+      const conceptName = getConceptName(transaction.conceptId, transaction).toLowerCase();
+      const providerName = getProviderName(transaction.providerId, transaction).toLowerCase();
       const amountStr = (transaction.amount ?? "").toString();
       const statusStr = (transaction.status ?? "").toString().toLowerCase();
       return (
@@ -590,10 +614,10 @@ const SolicitudesPago = () => {
                                 {formatDate(transaction.date)}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
-                                {getConceptName(transaction.conceptId)}
+                                {getConceptName(transaction.conceptId, transaction)}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
-                                {getProviderName(transaction.providerId)}
+                                {getProviderName(transaction.providerId, transaction)}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
                                 {formatCurrency(transaction.amount)}
@@ -609,7 +633,7 @@ const SolicitudesPago = () => {
                                     </svg>
                                     Recurrente
                                   </span>
-                                ) : (
+                                ) : getInitialExpenseBadge(transaction) || (
                                   <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                                     <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -664,13 +688,14 @@ const SolicitudesPago = () => {
                                   Recurrente
                                 </span>
                               )}
+                              {getInitialExpenseBadge(transaction)}
                               {getStatusBadge(transaction.status)}
                             </div>
                             <p className="text-sm font-medium text-foreground">
-                              {getConceptName(transaction.conceptId)}
+                              {getConceptName(transaction.conceptId, transaction)}
                             </p>
                             <p className="text-sm text-muted-foreground">
-                              {getProviderName(transaction.providerId)}
+                              {getProviderName(transaction.providerId, transaction)}
                             </p>
                           </div>
                           <div className="text-right">

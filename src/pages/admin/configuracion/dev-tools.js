@@ -1,12 +1,14 @@
 import { useState } from "react";
 import AdminLayout from "../../../components/layout/AdminLayout";
 import DeleteTransactionsModal from "../../../components/admin/DeleteTransactionsModal";
+import InitialExpenseModal from "../../../components/admin/InitialExpenseModal";
 import { transactionService } from "../../../lib/services/transactionService";
 import { useAuth } from "../../../context/AuthContext";
 import { useToast } from "../../../components/ui/Toast";
 
 const DevTools = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isInitialExpenseModalOpen, setIsInitialExpenseModalOpen] = useState(false);
   const { user } = useAuth();
   const toast = useToast();
 
@@ -140,7 +142,47 @@ const DevTools = () => {
           <div className="border border-gray-200 rounded-lg p-6">
             <div className="flex items-start">
               <div className="flex-shrink-0">
-                <div className="text-3xl">🔧</div>
+                <div className="text-3xl">�</div>
+              </div>
+              <div className="ml-4 flex-1">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Crear Gasto Inicial
+                </h3>
+                <p className="text-gray-600 mt-1 mb-4">
+                  Crea un gasto inicial sin necesidad de crear entidades en el sistema (general, concepto, subconcepto).
+                  Útil para inicializar el sistema con gastos del mes anterior.
+                </p>
+                
+                <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <svg className="h-4 w-4 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-2">
+                      <p className="text-sm text-blue-800">
+                        <strong>Gasto temporal:</strong> Este gasto usará nombres directos sin crear entidades permanentes en el sistema.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setIsInitialExpenseModalOpen(true)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 transition-colors"
+                >
+                  💰 Crear Gasto Inicial
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* More tools placeholder */}
+          <div className="border border-gray-200 rounded-lg p-6">
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                <div className="text-3xl">�🔧</div>
               </div>
               <div className="ml-4 flex-1">
                 <h3 className="text-lg font-semibold text-gray-900">
@@ -170,6 +212,16 @@ const DevTools = () => {
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={handleDeleteTransactions}
+      />
+
+      {/* Initial Expense Modal */}
+      <InitialExpenseModal
+        isOpen={isInitialExpenseModalOpen}
+        onClose={() => setIsInitialExpenseModalOpen(false)}
+        onSuccess={() => {
+          // Optional: Add any success handling here
+          console.log("Initial expense created successfully");
+        }}
       />
     </AdminLayout>
   );

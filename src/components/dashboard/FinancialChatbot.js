@@ -128,23 +128,17 @@ const FinancialChatbot = () => {
         return;
       }
 
-      console.log("Data received from API:", data);
-      console.log("Datos completos:", JSON.stringify(data, null, 2));
-      
       // Guardar el texto de respuesta
       setResponseText(data.response || "");
       
       // Verificar que data.data existe y tiene contenido
       if (data.data && (data.data.metrics || data.data.percentages || data.data.transactions)) {
-        console.log("Setting visual data:", data.data);
         setVisualData(data);
       } else {
-        console.warn("No visual data received or data is empty:", data.data);
         setError("Se recibió la respuesta pero no hay datos para visualizar.");
       }
 
     } catch (err) {
-      console.error("Error sending message:", err);
       setError("Error al procesar tu pregunta. Por favor, intenta nuevamente.");
     } finally {
       setIsLoading(false);
@@ -233,10 +227,8 @@ const FinancialChatbot = () => {
   };
 
   const renderPieChart = (data) => {
-    console.log('renderPieChart - datos recibidos:', data);
     
     if (!data || !Array.isArray(data) || data.length === 0) {
-      console.log('renderPieChart - no hay datos válidos');
       return (
         <div className="flex items-center justify-center h-80 text-gray-500">
           No hay datos disponibles para el gráfico
@@ -252,7 +244,6 @@ const FinancialChatbot = () => {
       color: getConceptColor(item.label, 'hex') // Asignar color consistente basado en el concepto
     }));
     
-    console.log('renderPieChart - datos procesados:', chartData);
     
     return (
       <div className="w-full h-[600px]">
@@ -288,10 +279,8 @@ const FinancialChatbot = () => {
   };
 
   const renderBarChart = (data) => {
-    console.log('renderBarChart - datos recibidos:', data);
     
     if (!data || !Array.isArray(data) || data.length === 0) {
-      console.log('renderBarChart - no hay datos válidos');
       return (
         <div className="flex items-center justify-center h-80 text-gray-500">
           No hay datos disponibles para el gráfico
@@ -306,7 +295,6 @@ const FinancialChatbot = () => {
       value: parseValue(item.value) // Limpiar y convertir a número
     }));
 
-    console.log('renderBarChart - datos procesados:', chartData);
 
     return (
       <div className="w-full h-80">
@@ -550,7 +538,6 @@ const FinancialChatbot = () => {
   };
 
   const renderVisualization = (data) => {
-    console.log("Rendering visualization with data:", data);
     if (!data) return null;
 
     return (

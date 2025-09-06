@@ -201,12 +201,22 @@ const Historial = () => {
     );
   };
 
-  const getConceptName = (conceptId) => {
+  const getConceptName = (conceptId, transaction = null) => {
+    // Si es un gasto inicial con conceptName, usar ese nombre
+    if (transaction?.isInitialExpense && transaction?.conceptName) {
+      return transaction.conceptName;
+    }
+    
     const concept = concepts.find((c) => c.id === conceptId);
     return concept ? concept.name : "N/A";
   };
 
-  const getProviderName = (providerId) => {
+  const getProviderName = (providerId, transaction = null) => {
+    // Si es un gasto inicial con providerName, usar ese nombre
+    if (transaction?.isInitialExpense && transaction?.providerName) {
+      return transaction.providerName;
+    }
+    
     if (!providerId) return "N/A";
     const provider = providers.find((p) => p.id === providerId);
     return provider ? provider.name : "N/A";
@@ -502,10 +512,10 @@ const Historial = () => {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
-                          {getConceptName(transaction.conceptId)}
+                          {getConceptName(transaction.conceptId, transaction)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
-                          {getProviderName(transaction.providerId)}
+                          {getProviderName(transaction.providerId, transaction)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
                           {formatCurrency(transaction.amount)}
@@ -548,10 +558,10 @@ const Historial = () => {
                           {getStatusBadge(transaction.status)}
                         </div>
                         <p className="text-sm font-medium text-foreground">
-                          {getConceptName(transaction.conceptId)}
+                          {getConceptName(transaction.conceptId, transaction)}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          {getProviderName(transaction.providerId)}
+                          {getProviderName(transaction.providerId, transaction)}
                         </p>
                       </div>
                       <div className="text-right">
