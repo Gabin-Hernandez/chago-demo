@@ -10,6 +10,7 @@ import { conceptService } from "../../lib/services/conceptService";
 import { subconceptService } from "../../lib/services/subconceptService";
 import { transactionService } from "../../lib/services/transactionService";
 import { providerService } from "../../lib/services/providerService";
+import { useAuth } from "../../context/AuthContext";
 import useReportStore from "../../lib/stores/reportStore";
 import {
   CalendarIcon,
@@ -20,18 +21,28 @@ import {
   ClockIcon,
   XMarkIcon,
   EyeIcon,
+  ArrowPathIcon,
+  CheckCircleIcon,
 } from "@heroicons/react/24/outline";
 
 const Reportes = () => {
   const { success, error } = useToast();
+  const { user } = useAuth();
   const { showIncomeInBreakdown, toggleShowIncomeInBreakdown } = useReportStore();
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [processingCarryover, setProcessingCarryover] = useState(false);
   const [transactions, setTransactions] = useState([]);
   const [stats, setStats] = useState(null);
   const [generals, setGenerals] = useState([]);
   const [showCarryoverPanel, setShowCarryoverPanel] = useState(false);
   const [carryoverTransactions, setCarryoverTransactions] = useState([]);
+  const [carryoverInfo, setCarryoverInfo] = useState(null);
+  const [carryoverStatus, setCarryoverStatus] = useState({
+    executed: false,
+    canExecute: false,
+    data: null
+  });
 
   const [filters, setFilters] = useState({
     startDate: "",
@@ -83,6 +94,7 @@ const Reportes = () => {
   useEffect(() => {
     if (filters.startDate && filters.endDate) {
       generateReport();
+      loadCarryoverInfo();
     }
   }, [filters]);
 
@@ -117,6 +129,31 @@ const Reportes = () => {
         conceptId: filters.conceptId || null,
         subconceptId: filters.subconceptId || null,
       };
+
+      // Verificar si estamos viendo el mes actual y calcular arrastre automáticamente
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth() + 1;
+      
+      if (filterData.startDate && filterData.endDate) {
+        const filterYear = filterData.startDate.getFullYear();
+        const filterMonth = filterData.startDate.getMonth() + 1;
+        
+        // Si estamos viendo el mes actual, verificar arrastre automáticamente
+        if (filterYear === currentYear && filterMonth === currentMonth) {
+          console.log('Verificando cálculo de arrastre automático para el mes actual...');
+          try {
+            const carryoverResult = await reportService.checkAndCalculateCarryoverIfNeeded();
+            if (carryoverResult.calculated) {
+              success(carryoverResult.message);
+            } else if (carryoverResult.error) {
+              console.warn('Error en verificación de arrastre:', carryoverResult.message);
+            }
+          } catch (error) {
+            console.warn('Error verificando arrastre automático:', error.message);
+          }
+        }
+      }
 
       const transactionsData =
         await reportService.getFilteredTransactions(filterData);
@@ -170,6 +207,64 @@ const Reportes = () => {
     } catch (err) {
       console.error("Error loading carryover transactions:", err);
       error("Error al cargar transacciones de arrastre");
+    }
+  };
+
+  const processMonthlyCarryover = async () => {
+    try {
+      setProcessingCarryover(true);
+      
+      const result = await reportService.checkAndCalculateCarryoverIfNeeded();
+      
+      if (result.calculated || result.alreadyCalculated) {
+        success(result.message);
+      } else if (result.error) {
+        error(result.message);
+      } else {
+        success(result.message || 'Proceso completado');
+      }
+      
+      // Recargar el reporte para reflejar los cambios
+      await generateReport();
+      await loadCarryoverInfo();
+      
+    } catch (err) {
+      console.error("Error processing carryover:", err);
+      error("Error al procesar el arrastre mensual");
+    } finally {
+      setProcessingCarryover(false);
+    }
+  };
+
+  const loadCarryoverInfo = async () => {
+    try {
+      if (filters.startDate) {
+        // Parsear la fecha correctamente evitando problemas de zona horaria
+        let startDateStr = filters.startDate;
+        if (filters.startDate instanceof Date) {
+          startDateStr = filters.startDate.toISOString().split('T')[0];
+        }
+        
+        const startDateParts = startDateStr.split('-');
+        const year = parseInt(startDateParts[0]);
+        const month = parseInt(startDateParts[1]);
+        
+        console.log(`🔍 checkCarryoverStatus: startDate=${startDateStr}, year=${year}, month=${month}`);
+        
+        const status = await reportService.getCarryoverStatus(year, month);
+        console.log(`📊 checkCarryoverStatus: status recibido:`, status);
+        
+        setCarryoverStatus(status);
+        setCarryoverInfo(status.data);
+      }
+    } catch (err) {
+      console.warn("No se pudo cargar información de arrastre:", err.message);
+      setCarryoverInfo(null);
+      setCarryoverStatus({
+        executed: false,
+        canExecute: false,
+        data: null
+      });
     }
   };
 
@@ -519,13 +614,50 @@ const Reportes = () => {
 
             {/* Balance Breakdown */}
             {(stats.carryoverBalance !== 0 ||
+              stats.carryoverIncome !== 0 ||
               stats.currentPeriodBalance !== 0) && (
               <div className="bg-background rounded-lg border border-border p-6">
-                <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center">
-                  <ChartBarIcon className="h-5 w-5 mr-2" />
-                  Desglose de Balance
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-foreground flex items-center">
+                    <ChartBarIcon className="h-5 w-5 mr-2" />
+                    Desglose de Balance
+                  </h3>
+                  {/* Botón para calcular arrastre mensual */}
+                  <div className="flex items-center space-x-2">
+                    {carryoverStatus.calculated && (
+                      <span className="text-xs text-green-600 flex items-center">
+                        <CheckCircleIcon className="h-4 w-4 mr-1" />
+                        Arrastre calculado
+                      </span>
+                    )}
+                    {!carryoverStatus.calculated && carryoverStatus.hasPositiveBalance && (
+                      <span className="text-xs text-blue-600 flex items-center">
+                        <ClockIcon className="h-4 w-4 mr-1" />
+                        Pendiente de calcular
+                      </span>
+                    )}
+                    <Button
+                      onClick={processMonthlyCarryover}
+                      disabled={processingCarryover}
+                      variant={carryoverStatus.calculated ? "outline" : "primary"}
+                      size="sm"
+                      className={`inline-flex items-center ${
+                        carryoverStatus.calculated 
+                          ? 'border-green-500 text-green-600 hover:bg-green-50' 
+                          : 'border-blue-500 text-blue-600 hover:bg-blue-50'
+                      }`}
+                    >
+                      <ArrowPathIcon className={`h-4 w-4 mr-2 ${processingCarryover ? 'animate-spin' : ''}`} />
+                      {processingCarryover 
+                        ? 'Calculando...' 
+                        : carryoverStatus.calculated 
+                          ? 'Recalcular Arrastre'
+                          : 'Calcular Arrastre'
+                      }
+                    </Button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <h4 className="font-medium text-blue-800">
                       Balance del Período
@@ -540,9 +672,24 @@ const Reportes = () => {
                     </p>
                   </div>
 
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <h4 className="font-medium text-green-800">
+                      Arrastre de Ingresos
+                    </h4>
+                    <p className="text-2xl font-bold text-green-600">
+                      {(() => {
+                        console.log(`🔍 Renderizando arrastre: stats.carryoverIncome=`, stats.carryoverIncome);
+                        return formatCurrency(stats.carryoverIncome || 0);
+                      })()}
+                    </p>
+                    <p className="text-sm text-green-600">
+                      Del mes anterior
+                    </p>
+                  </div>
+
                   <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
                     <h4 className="font-medium text-orange-800">
-                      Balance Arrastrado
+                      Gastos Pendientes
                     </h4>
                     <p
                       className={`text-2xl font-bold ${stats.carryoverBalance >= 0 ? "text-green-600" : "text-red-600"}`}
@@ -550,7 +697,7 @@ const Reportes = () => {
                       {formatCurrency(stats.carryoverBalance)}
                     </p>
                     <p className="text-sm text-orange-600">
-                      Todos los gastos pendientes
+                      Todos los pendientes
                     </p>
                   </div>
 
@@ -561,9 +708,74 @@ const Reportes = () => {
                     >
                       {formatCurrency(stats.totalBalance)}
                     </p>
-                    <p className="text-sm text-gray-600">Período + Arrastre</p>
+                    <p className="text-sm text-gray-600">Completo</p>
                   </div>
                 </div>
+                
+                {/* Información detallada del arrastre */}
+                {carryoverInfo && (
+                  <div className={`mt-4 p-4 border rounded-lg ${
+                    carryoverStatus.executed 
+                      ? 'bg-green-50 border-green-200' 
+                      : 'bg-blue-50 border-blue-200'
+                  }`}>
+                    <div className="flex justify-between items-center mb-2">
+                      <h5 className={`font-medium ${
+                        carryoverStatus.executed ? 'text-green-800' : 'text-blue-800'
+                      }`}>
+                        Detalle del Arrastre - {carryoverInfo.previousMonth}/{carryoverInfo.previousYear}
+                      </h5>
+                      {carryoverStatus.executed && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          <CheckCircleIcon className="h-3 w-3 mr-1" />
+                          Ejecutado
+                        </span>
+                      )}
+                      {!carryoverStatus.executed && carryoverStatus.canExecute && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                          <ClockIcon className="h-3 w-3 mr-1" />
+                          Pendiente
+                        </span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-3 gap-4 text-sm">
+                      <div>
+                        <span className={carryoverStatus.executed ? 'text-green-600' : 'text-blue-600'}>
+                          Ingresos del mes:
+                        </span>
+                        <p className="font-semibold text-green-600">
+                          {formatCurrency(carryoverInfo.totalIngresos)}
+                        </p>
+                      </div>
+                      <div>
+                        <span className={carryoverStatus.executed ? 'text-green-600' : 'text-blue-600'}>
+                          Gastos pagados:
+                        </span>
+                        <p className="font-semibold text-red-600">
+                          {formatCurrency(carryoverInfo.totalGastosPagados)}
+                        </p>
+                      </div>
+                      <div>
+                        <span className={carryoverStatus.executed ? 'text-green-600' : 'text-blue-600'}>
+                          Saldo arrastrado:
+                        </span>
+                        <p className="font-semibold text-green-600">
+                          {formatCurrency(carryoverInfo.saldoArrastre)}
+                        </p>
+                      </div>
+                    </div>
+                    {carryoverStatus.executed && (
+                      <div className="mt-2 text-xs text-green-600">
+                        ✅ Este arrastre ya fue aplicado como transacción de ingreso en el sistema
+                      </div>
+                    )}
+                    {!carryoverStatus.executed && carryoverStatus.canExecute && (
+                      <div className="mt-2 text-xs text-orange-600">
+                        ⏳ Haz clic en "Ejecutar Arrastre" para aplicar este saldo al mes actual
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>

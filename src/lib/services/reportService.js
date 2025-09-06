@@ -3,6 +3,7 @@ import { providerService } from './providerService';
 import { conceptService } from './conceptService';
 import { descriptionService } from './descriptionService';
 import { generalService } from './generalService';
+import { carryoverService } from './carryoverService';
 import { createEnhancedPDFReport } from './pdfTemplates';
 import * as XLSX from 'xlsx';
 
@@ -96,10 +97,11 @@ export const reportService = {
     }
   },
 
-  // Generar estadísticas del reporte con balance de arrastre
-  // El arrastre incluye TODOS los pendientes de todos los meses
+  // Generar estadísticas del reporte con balance de arrastre mejorado
   async generateReportStats(transactions, filters = {}) {
     try {
+      console.log(`🔍 generateReportStats: filters recibidos:`, filters);
+      
       const stats = {
         totalTransactions: transactions.length,
         totalEntradas: 0,
@@ -109,7 +111,8 @@ export const reportService = {
         salidasCount: 0,
         averageEntrada: 0,
         averageSalida: 0,
-        carryoverBalance: 0, // Balance arrastrado de meses anteriores
+        carryoverBalance: 0, // Balance arrastrado de gastos pendientes
+        carryoverIncome: 0, // Ingresos arrastrados del mes anterior
         currentPeriodBalance: 0, // Balance del período actual
         paymentStatus: {
           pendiente: { count: 0, amount: 0, carryover: 0 },
@@ -121,6 +124,53 @@ export const reportService = {
         providerBreakdown: {},
         monthlyBreakdown: {}
       };
+
+      // Obtener el arrastre de ingresos para el período actual si está filtrando por mes
+      const hasDateFilter = filters.startDate && filters.endDate;
+      let monthlyCarryover = null;
+      
+      if (hasDateFilter) {
+        // Parsear la fecha correctamente evitando problemas de zona horaria
+        let startDateStr = filters.startDate;
+        if (filters.startDate instanceof Date) {
+          startDateStr = filters.startDate.toISOString().split('T')[0];
+        }
+        
+        const startDateParts = startDateStr.split('-');
+        const year = parseInt(startDateParts[0]);
+        const month = parseInt(startDateParts[1]);
+        
+        console.log(`🔍 generateReportStats: Extrayendo fechas - startDate=${startDateStr}, year=${year}, month=${month}`);
+        console.log(`🔍 Buscando arrastre para mostrar en ${month}/${year}`);
+        
+        try {
+          // Buscar el arrastre que proviene del mes anterior
+          // Si estamos viendo septiembre, buscamos arrastre de agosto
+          // Si estamos viendo octubre, buscamos arrastre de septiembre
+          const previousMonth = month === 1 ? 12 : month - 1;
+          const previousYear = month === 1 ? year - 1 : year;
+          
+          console.log(`🔍 Buscando arrastre del mes anterior: ${previousMonth}/${previousYear}`);
+          
+          // Buscar el documento de arrastre que fue generado desde el mes anterior
+          // Este documento tendrá month=mes_actual y previousMonth=mes_anterior
+          console.log(`🔍 Buscando carryover para año=${year}, mes=${month}`);
+          monthlyCarryover = await carryoverService.getCarryoverForMonth(year, month);
+          console.log('📊 Resultado de carryover desde registro:', monthlyCarryover);
+          
+          if (monthlyCarryover && monthlyCarryover.saldoArrastre > 0) {
+            stats.carryoverIncome = monthlyCarryover.saldoArrastre;
+            console.log(`✅ Arrastre aplicado: ${monthlyCarryover.saldoArrastre} del ${monthlyCarryover.previousMonth}/${monthlyCarryover.previousYear}`);
+          } else {
+            console.log(`❌ No hay arrastre para ${month}/${year} o es 0`, {
+              hasCarryover: !!monthlyCarryover,
+              saldoArrastre: monthlyCarryover?.saldoArrastre
+            });
+          }
+        } catch (error) {
+          console.warn('⚠️ Error obteniendo arrastre:', error.message);
+        }
+      }
 
       // Get reference data
       const [concepts, providers, descriptions, generals] = await Promise.all([
@@ -150,8 +200,7 @@ export const reportService = {
         generalMap[general.id] = general.name;
       });
 
-      // Determine if we're filtering by date range
-      const hasDateFilter = filters.startDate && filters.endDate;
+      // Use the already declared hasDateFilter and define date range variables
       const startDate = hasDateFilter ? new Date(filters.startDate) : null;
       const endDate = hasDateFilter ? new Date(filters.endDate) : null;
 
@@ -174,14 +223,29 @@ export const reportService = {
         const isInPeriod = !hasDateFilter || 
           (transactionDate >= startDate && transactionDate <= endDate);
 
+        // Log para transacciones de arrastre
+        if (transaction.isCarryover) {
+          console.log(`💰 Transacción de arrastre detectada:`, {
+            amount,
+            date: transactionDate,
+            isInPeriod,
+            description: transaction.description
+          });
+        }
+
        
 
         // Basic stats
         if (transaction.type === 'entrada') {
-          // Solo contabilizar entradas que estén en el período (no hay arrastre de entradas)
-          if (isInPeriod) {
+          // Solo contabilizar entradas que estén en el período Y que NO sean arrastre
+          if (isInPeriod && !transaction.isCarryover) {
             stats.totalEntradas += amount;
             stats.entradasCount++;
+            stats.currentPeriodBalance += amount;
+          }
+          // Si es una transacción de arrastre del período actual, no la contamos en totalEntradas
+          // pero sí en el balance del período
+          else if (isInPeriod && transaction.isCarryover) {
             stats.currentPeriodBalance += amount;
           }
         } else if (transaction.type === 'salida') {
@@ -290,12 +354,19 @@ export const reportService = {
         }
       });
 
-      // Calculate derived stats
-      stats.totalBalance = stats.currentPeriodBalance + stats.carryoverBalance;
+      // Calculate derived stats including carryover income
+      stats.totalBalance = stats.currentPeriodBalance + stats.carryoverBalance + stats.carryoverIncome;
       stats.averageEntrada = stats.entradasCount > 0 ? stats.totalEntradas / stats.entradasCount : 0;
       stats.averageSalida = stats.salidasCount > 0 ? stats.totalSalidas / stats.salidasCount : 0;
 
-   
+      // Log final de estadísticas
+      console.log('📊 Estadísticas finales:', {
+        totalEntradas: stats.totalEntradas,
+        carryoverIncome: stats.carryoverIncome,
+        currentPeriodBalance: stats.currentPeriodBalance,
+        carryoverBalance: stats.carryoverBalance,
+        totalBalance: stats.totalBalance
+      });
 
       return stats;
     } catch (error) {
@@ -419,6 +490,54 @@ export const reportService = {
     } catch (error) {
       console.error('Error exporting to PDF:', error);
       throw new Error('Error al exportar a PDF');
+    }
+  },
+
+  // Procesar el arrastre mensual de saldos (manual)
+  async processMonthlyCarryover(user) {
+    try {
+      return await carryoverService.processMonthlyCarryover(user);
+    } catch (error) {
+      console.error('Error processing monthly carryover:', error);
+      throw new Error('Error al procesar el arrastre mensual');
+    }
+  },
+
+  // Verificar y calcular arrastre automáticamente si es necesario
+  async checkAndCalculateCarryoverIfNeeded() {
+    try {
+      return await carryoverService.checkAndCalculateCarryoverIfNeeded();
+    } catch (error) {
+      console.error('Error checking carryover:', error);
+      // No lanzar error para no romper la carga de reportes
+      return {
+        error: true,
+        message: `Error al verificar arrastre: ${error.message}`
+      };
+    }
+  },
+
+  // Obtener información del arrastre para un mes específico
+  async getCarryoverInfo(year, month) {
+    try {
+      return await carryoverService.getCarryoverForMonth(year, month);
+    } catch (error) {
+      console.error('Error getting carryover info:', error);
+      throw new Error('Error al obtener información del arrastre');
+    }
+  },
+
+  // Obtener el estado del arrastre (si ya fue ejecutado, etc.)
+  async getCarryoverStatus(year, month) {
+    try {
+      return await carryoverService.getCarryoverStatus(year, month);
+    } catch (error) {
+      console.error('Error getting carryover status:', error);
+      return {
+        data: null,
+        executed: false,
+        canExecute: false
+      };
     }
   }
 };
