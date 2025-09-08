@@ -291,6 +291,10 @@ export const transactionService = {
         q = query(q, where("type", "==", filters.type));
       }
 
+      if (filters.providerId) {
+        q = query(q, where("providerId", "==", filters.providerId));
+      }
+
       if (filters.generalId) {
         q = query(q, where("generalId", "==", filters.generalId));
       }
@@ -301,6 +305,10 @@ export const transactionService = {
 
       if (filters.subconceptId) {
         q = query(q, where("subconceptId", "==", filters.subconceptId));
+      }
+
+      if (filters.status) {
+        q = query(q, where("status", "==", filters.status));
       }
 
       q = query(q, orderBy("date", "desc"));
