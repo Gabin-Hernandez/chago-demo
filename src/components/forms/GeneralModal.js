@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { generalService } from '../../lib/services/generalService';
 
-export default function GeneralModal({ isOpen, onClose, onSuccess, initialData = null }) {
+export default function GeneralModal({ isOpen, onClose, onSuccess, type = 'entrada', initialData = null }) {
   const [formData, setFormData] = useState({
     name: '',
     type: 'entrada',
@@ -12,7 +12,7 @@ export default function GeneralModal({ isOpen, onClose, onSuccess, initialData =
 
   useEffect(() => {
     if (isOpen) {
-      if (initialData) {
+      if (initialData && initialData.id) {
         // Editing existing general
         setFormData({
           name: initialData.name || '',
@@ -23,13 +23,13 @@ export default function GeneralModal({ isOpen, onClose, onSuccess, initialData =
         // Creating new general
         setFormData({
           name: '',
-          type: 'entrada',
+          type: type || 'entrada', // Use the passed type or default to 'entrada'
           description: ''
         });
       }
       setErrors({});
     }
-  }, [isOpen, initialData]);
+  }, [isOpen, type, initialData]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -63,15 +63,16 @@ export default function GeneralModal({ isOpen, onClose, onSuccess, initialData =
     setErrors({});
 
     try {
-      if (initialData) {
+      let result;
+      if (initialData && initialData.id) {
         // Update existing general
-        await generalService.update(initialData.id, formData);
+        result = await generalService.update(initialData.id, formData);
       } else {
         // Create new general
-        await generalService.create(formData);
+        result = await generalService.create(formData);
       }
-
-      onSuccess();
+      
+      onSuccess(result);
       onClose();
     } catch (error) {
       setErrors({ 
@@ -89,7 +90,7 @@ export default function GeneralModal({ isOpen, onClose, onSuccess, initialData =
       <div className="bg-white rounded-lg max-w-md w-full max-h-screen overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b">
           <h3 className="text-lg font-semibold text-gray-900">
-            {initialData ? 'Editar Categoría General' : 'Nueva Categoría General'}
+            {initialData && initialData.id ? 'Editar Categoría General' : 'Nueva Categoría General'}
           </h3>
           <button
             onClick={onClose}
@@ -194,10 +195,10 @@ export default function GeneralModal({ isOpen, onClose, onSuccess, initialData =
               {isSubmitting ? (
                 <div className="flex items-center">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Guardando...
+                  {initialData && initialData.id ? 'Actualizando...' : 'Guardando...'}
                 </div>
               ) : (
-                initialData ? 'Actualizar' : 'Crear'
+                initialData && initialData.id ? 'Actualizar' : 'Guardar'
               )}
             </button>
           </div>

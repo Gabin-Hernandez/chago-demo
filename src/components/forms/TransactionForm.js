@@ -5,6 +5,7 @@ import SubconceptSelector from "./SubconceptSelector";
 import ProviderSelector from "./ProviderSelector";
 import ConceptModal from "./ConceptModal";
 import SubconceptModal from "./SubconceptModal";
+import GeneralModal from "./GeneralModal";
 import { useToast } from "../ui/Toast";
 import { settingsService } from "../../lib/services/settingsService";
 import { useAuth } from "../../context/AuthContext";
@@ -61,6 +62,7 @@ const TransactionForm = ({
   const [errors, setErrors] = useState({});
   const [showConceptModal, setShowConceptModal] = useState(false);
   const [showSubconceptModal, setShowSubconceptModal] = useState(false);
+  const [showGeneralModal, setShowGeneralModal] = useState(false);
   const [generals, setGenerals] = useState([]);
   const [loadingGenerals, setLoadingGenerals] = useState(false);
   const [generalsError, setGeneralsError] = useState(null);
@@ -559,6 +561,36 @@ const TransactionForm = ({
     toast.success("Proveedor creado exitosamente");
   };
 
+  const handleGeneralCreated = (newGeneral) => {
+    // Refresh generals list
+    const loadGenerals = async () => {
+      try {
+        setLoadingGenerals(true);
+        setGeneralsError(null);
+        const allGenerals = await generalService.getAll();
+        // Filter by transaction type if provided
+        const filtered = allGenerals.filter(g => !formData.type || g.type === formData.type);
+        setGenerals(filtered);
+      } catch (err) {
+        setGeneralsError(err.message);
+      } finally {
+        setLoadingGenerals(false);
+      }
+    };
+    
+    loadGenerals();
+    
+    // Set the new general as selected and reset dependent fields
+    setFormData((prev) => ({
+      ...prev,
+      generalId: newGeneral.id,
+      conceptId: "",
+      subconceptId: "",
+    }));
+    
+    toast.success("Categoría general creada exitosamente");
+  };
+
   return (
     <div className={className}>
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -586,7 +618,14 @@ const TransactionForm = ({
             ) : (
               <select
                 value={formData.generalId}
-                onChange={(e) => setFormData(prev => ({ ...prev, generalId: e.target.value, conceptId: '', subconceptId: '' }))}
+                onChange={(e) => {
+                  const selectedValue = e.target.value;
+                  if (selectedValue === 'CREATE_NEW') {
+                    setShowGeneralModal(true);
+                  } else {
+                    setFormData(prev => ({ ...prev, generalId: selectedValue, conceptId: '', subconceptId: '' }));
+                  }
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-blue-500"
                 disabled={loading}
                 required
@@ -597,6 +636,9 @@ const TransactionForm = ({
                     {g.name} ({g.type === 'entrada' ? 'Ingreso' : 'Gasto'})
                   </option>
                 ))}
+                <option value="CREATE_NEW" className="font-semibold text-primary">
+                  + Agregar nuevo general
+                </option>
               </select>
             )}
             {errors.generalId && (
@@ -955,6 +997,15 @@ const TransactionForm = ({
           </button>
         </div>
       </form>
+
+      {/* General Modal */}
+      <GeneralModal
+        isOpen={showGeneralModal}
+        onClose={() => setShowGeneralModal(false)}
+        onSuccess={handleGeneralCreated}
+        type={formData.type} // Pass the current transaction type directly
+        initialData={null} // Always create new when called from transaction form
+      />
 
       {/* Concept Modal */}
       <ConceptModal
