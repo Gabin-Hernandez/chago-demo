@@ -8,7 +8,7 @@ En la captura de pantalla se observa:
 - **Problema**: No se están trayendo todos los pendientes de meses anteriores
 
 ## Diagnóstico del Código
-
+a
 Al revisar el código, encontré varios problemas potenciales:
 
 1. **Filtro redundante**: Se estaba filtrando dos veces por `status: 'pendiente'`
