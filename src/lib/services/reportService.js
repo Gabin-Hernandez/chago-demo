@@ -381,10 +381,11 @@ export const reportService = {
       const workbook = XLSX.utils.book_new();
 
       // Get reference data for lookups
-      const [concepts, providers, descriptions] = await Promise.all([
+      const [concepts, providers, descriptions, generals] = await Promise.all([
         conceptService.getAll(),
         providerService.getAll(),
-        descriptionService.getAll()
+        descriptionService.getAll(),
+        generalService.getAll()
       ]);
 
       const conceptMap = {};
@@ -402,20 +403,61 @@ export const reportService = {
         descriptionMap[description.id] = description.name;
       });
 
-      // Transactions sheet
-      const transactionsData = transactions.map(transaction => ({
-        'ID': transaction.id,
-        'Fecha': new Date(transaction.date?.toDate ? transaction.date.toDate() : transaction.date)
-          .toLocaleDateString('es-ES'),
-        'Tipo': transaction.type,
-        'Concepto': conceptMap[transaction.conceptId] || 'Sin concepto',
-        'Descripción': descriptionMap[transaction.descriptionId] || 'Sin descripción',
-        'Proveedor': providerMap[transaction.providerId] || 'N/A',
-        'Monto': transaction.amount,
-        'Estado': transaction.status || 'pendiente',
-        'Total Pagado': transaction.totalPaid || 0,
-        'Saldo': transaction.balance || transaction.amount
-      }));
+      const generalMap = {};
+      generals.forEach(general => {
+        generalMap[general.id] = general.name;
+      });
+
+      // Transactions sheet - sin ID, descripción, estado, total pagado y monto individual
+      // Ordenado por generales en lugar de fecha
+      const transactionsData = transactions
+        .map(transaction => ({
+          'Fecha': new Date(transaction.date?.toDate ? transaction.date.toDate() : transaction.date)
+            .toLocaleDateString('es-ES'),
+          'Tipo': transaction.type,
+          'General': generalMap[transaction.generalId] || 'Sin categoría general',
+          'Concepto': conceptMap[transaction.conceptId] || 'Sin concepto',
+          'Proveedor': providerMap[transaction.providerId] || 'N/A',
+          'Importe': transaction.amount
+        }))
+        .sort((a, b) => a.General.localeCompare(b.General)); // Ordenar por General
+
+      // Agregar filas de totales al final
+      transactionsData.push(
+        {}, // Fila vacía para separar
+        {
+          'Fecha': '',
+          'Tipo': '',
+          'General': '',
+          'Concepto': '',
+          'Proveedor': 'TOTALES:',
+          'Importe': ''
+        },
+        {
+          'Fecha': '',
+          'Tipo': '',
+          'General': '',
+          'Concepto': '',
+          'Proveedor': 'Total Ingresos:',
+          'Importe': stats.totalEntradas.toLocaleString('es-MX')
+        },
+        {
+          'Fecha': '',
+          'Tipo': '',
+          'General': '',
+          'Concepto': '',
+          'Proveedor': 'Total Salidas:',
+          'Importe': Math.abs(stats.totalSalidas).toLocaleString('es-MX')
+        },
+        {
+          'Fecha': '',
+          'Tipo': '',
+          'General': '',
+          'Concepto': '',
+          'Proveedor': 'Balance Final:',
+          'Importe': (stats.totalBalance >= 0 ? '+' : '') + stats.totalBalance.toLocaleString('es-MX')
+        }
+      );
 
       const transactionsSheet = XLSX.utils.json_to_sheet(transactionsData);
       XLSX.utils.book_append_sheet(workbook, transactionsSheet, 'Transacciones');
@@ -439,17 +481,17 @@ export const reportService = {
       const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
       XLSX.utils.book_append_sheet(workbook, summarySheet, 'Resumen');
 
-      // Concept breakdown sheet
-      const conceptData = Object.entries(stats.conceptBreakdown).map(([concept, data]) => ({
-        'Concepto': concept,
+      // General breakdown sheet - reemplaza la hoja de conceptos
+      const generalData = Object.entries(stats.generalBreakdown).map(([general, data]) => ({
+        'General': general,
         'Entradas': `${data.entradas.toLocaleString('es-MX')}`,
         'Salidas': `${data.salidas.toLocaleString('es-MX')}`,
         'Total': `${data.total.toLocaleString('es-MX')}`,
         'Cantidad': data.count
-      }));
+      })).sort((a, b) => a.General.localeCompare(b.General)); // Ordenar por General
 
-      const conceptSheet = XLSX.utils.json_to_sheet(conceptData);
-      XLSX.utils.book_append_sheet(workbook, conceptSheet, 'Por Concepto');
+      const generalSheet = XLSX.utils.json_to_sheet(generalData);
+      XLSX.utils.book_append_sheet(workbook, generalSheet, 'Por General');
 
       // Generate filename
       const now = new Date();
