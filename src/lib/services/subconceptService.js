@@ -174,9 +174,7 @@ export const subconceptService = {
       errors.name = 'El nombre del subconcepto es requerido';
     }
     
-    if (!subconceptData.conceptId || subconceptData.conceptId.trim() === '') {
-      errors.conceptId = 'El concepto es requerido';
-    }
+    // Removed conceptId requirement - subconcepts are now independent
     
     return {
       isValid: Object.keys(errors).length === 0,

@@ -14,7 +14,6 @@ import FileUpload from "../ui/FileUpload";
 import { conceptService } from "../../lib/services/conceptService";
 import { subconceptService } from "../../lib/services/subconceptService";
 import { paymentService } from "../../lib/services/paymentService";
-import { recurringExpenseService } from "../../lib/services/recurringExpenseService";
 import { sendEmailWithRateLimit } from "../../lib/utils";
 
 const TransactionForm = ({
@@ -53,8 +52,7 @@ const TransactionForm = ({
       amount: initialData?.amount || "",
       date: initialDate,
       providerId: initialData?.providerId || "", // Only for salidas
-      division: initialData?.division || "general", // Nueva opción para categorizar gastos
-      isRecurring: initialData?.isRecurring || false, // Toggle para gastos recurrentes
+      division: "general",
     };
   });
 
@@ -222,6 +220,10 @@ const TransactionForm = ({
       newErrors.subconceptId = "El subconcepto es requerido";
     }
 
+    if (!formData.description || formData.description.trim() === "") {
+      newErrors.description = "La descripción es requerida";
+    }
+
     if (!formData.amount || parseFloat(formData.amount) <= 0) {
       newErrors.amount = "El monto debe ser mayor a 0";
     }
@@ -307,35 +309,6 @@ const TransactionForm = ({
         // Create new transaction
         result = await transactionService.create(transactionData, user);
         
-        // If it's a recurring expense, also create the recurring expense record
-        if (formData.type === "salida" && formData.isRecurring) {
-          const recurringData = {
-            generalId: formData.generalId,
-            conceptId: formData.conceptId,
-            subconceptId: formData.subconceptId,
-            description: formData.description,
-            amount: parseFloat(formData.amount),
-            providerId: formData.providerId,
-            division: formData.division,
-          };
-          
-          // Create the recurring expense and mark current month as already generated
-          const currentMonth = new Date(year, month, 1);
-          const currentMonthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth()).padStart(2, '0')}`;
-          recurringData.generatedMonths = [currentMonthKey]; // Mark current month as generated
-          
-          const recurringExpense = await recurringExpenseService.create(recurringData, user);
-          
-          // Update the manual transaction to mark it as coming from a recurring expense
-          // and update its description to include "(Recurrente)"
-          await transactionService.update(result.id, {
-            description: `${formData.description} (Recurrente)`,
-            isRecurring: true,
-            recurringExpenseId: recurringExpense.id
-          }, user);
-          
-          toast.success("Gasto recurrente configurado exitosamente");
-        }
         // Upload optional attachments and save on transaction
         if (files.length > 0) {
           try {
@@ -513,7 +486,6 @@ const TransactionForm = ({
           date: new Date().toISOString().split("T")[0],
           providerId: "",
           division: "general",
-          isRecurring: false,
         });
         setFiles([]);
         setAttachmentProgress(0);
@@ -534,7 +506,6 @@ const TransactionForm = ({
     setFormData((prev) => ({
       ...prev,
       conceptId: newConcept.id,
-      descriptionId: "", // Reset description
     }));
     toast.success("Concepto creado exitosamente");
   };
@@ -651,13 +622,12 @@ const TransactionForm = ({
             <ConceptSelector
               ref={conceptSelectorRef}
               type={formData.type}
-              generalId={formData.generalId}
               value={formData.conceptId}
               onChange={handleConceptChange}
               onCreateNew={() => setShowConceptModal(true)}
               required
-              disabled={loading || !formData.generalId}
-              placeholder={!formData.generalId ? "Primero selecciona una categoría general" : "Seleccionar concepto..."}
+              disabled={loading}
+              placeholder="Seleccionar concepto..."
             />
             {errors.conceptId && (
               <p className="mt-1 text-sm text-red-600">{errors.conceptId}</p>
@@ -670,13 +640,12 @@ const TransactionForm = ({
             </label>
             <SubconceptSelector
               ref={subconceptSelectorRef}
-              conceptId={formData.conceptId}
               value={formData.subconceptId}
               onChange={handleSubconceptChange}
               onCreateNew={() => setShowSubconceptModal(true)}
               required
-              disabled={loading || !formData.conceptId}
-              placeholder={!formData.conceptId ? "Primero selecciona un concepto" : "Seleccionar subconcepto..."}
+              disabled={loading}
+              placeholder="Seleccionar subconcepto..."
             />
             {errors.subconceptId && (
               <p className="mt-1 text-sm text-red-600">{errors.subconceptId}</p>
@@ -790,10 +759,10 @@ const TransactionForm = ({
           </div>
         )}
 
-        {/* Cuarta fila: Descripción */}
+        {/* Descripción - Ancho completo */}
         <div>
           <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
-            Descripción (opcional)
+            Descripción *
           </label>
           <textarea
             id="description"
@@ -801,13 +770,19 @@ const TransactionForm = ({
             value={formData.description}
             onChange={handleInputChange}
             rows={3}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-blue-500"
-            placeholder="Escribe una nota o detalle..."
+            className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-orange-500 focus:border-blue-500 ${
+              errors.description ? "border-red-300" : "border-gray-300"
+            }`}
+            placeholder="Describe el gasto o transacción..."
             disabled={loading}
+            required
           />
+          {errors.description && (
+            <p className="mt-1 text-sm text-red-600">{errors.description}</p>
+          )}
         </div>
 
-        {/* Quinta fila: Adjuntos */}
+        {/* Cuarta fila: Adjuntos */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Adjuntos (opcional)
@@ -868,91 +843,6 @@ const TransactionForm = ({
         </div>
 
 
-
-        {/* Recurring Expense Toggle - Only for salidas */}
-        {formData.type === "salida" && !initialData && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-rose-400 rounded-lg">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                </div>
-                <div>
-                  <h4 className="text-sm font-medium text-gray-900">Gasto Recurrente</h4>
-                  <p className="text-sm text-gray-600">
-                    Este gasto se repetirá automáticamente cada mes como pendiente
-                  </p>
-                  {/* Debug info */}
-                  <p className="text-xs text-gray-500 mt-1">
-                    Debug - Tipo: {formData.type}, InitialData: {initialData ? 'Sí' : 'No'}, Estado: {formData.isRecurring ? 'ON' : 'OFF'}
-                  </p>
-                </div>
-              </div>
-              
-              {/* Toggle Switch */}
-              <div className="flex items-center">
-                <button
-                  type="button"
-                  onClick={() => {
-                    console.log('Toggle clicked, current state:', formData.isRecurring);
-                    const newState = !formData.isRecurring;
-                    console.log('Setting new state:', newState);
-                    setFormData(prev => {
-                      const updated = { ...prev, isRecurring: newState };
-                      console.log('Updated formData:', updated);
-                      return updated;
-                    });
-                  }}
-                  disabled={loading}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-rose-400 focus:ring-offset-2 ${
-                    formData.isRecurring ? 'bg-rose-400' : 'bg-gray-200'
-                  } ${loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      formData.isRecurring ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
-                <span className="ml-3 text-sm font-medium text-gray-900">
-                  {formData.isRecurring ? 'Activado' : 'Desactivado'}
-                </span>
-              </div>
-            </div>
-            {formData.isRecurring && (
-              <div className="mt-4 p-3 bg-rose-50 rounded-md">
-                <div className="flex items-start space-x-2">
-                  <svg className="w-4 h-4 text-rose-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <div className="text-xs text-rose-600">
-                    <p className="font-medium mb-2">¿Cómo funciona?</p>
-                    <div className="space-y-2">
-                      <div>
-                        <p className="font-medium text-rose-600 mb-1">📅 Generación automática:</p>
-                        <ul className="space-y-1 ml-2">
-                          <li>• Se creará automáticamente una transacción pendiente cada mes</li>
-                          <li>• Aparecerá el primer día del siguiente mes</li>
-                          <li>• Mantendrá todos los datos del gasto original</li>
-                        </ul>
-                      </div>
-                      <div>
-                        <p className="font-medium text-rose-600 mb-1">⚙️ Gestión y control:</p>
-                        <ul className="space-y-1 ml-2">
-                          <li>• Podrás activar/desactivar desde "Gastos Recurrentes"</li>
-                          <li>• Cuando se desactiva solo se generará para el mes actual</li>
-                          <li>• Puedes reactivarlo en cualquier momento</li>
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
 
         {/* Form Actions */}
         <div className="flex justify-end space-x-3 pt-4 border-t">
@@ -1020,7 +910,6 @@ const TransactionForm = ({
         isOpen={showSubconceptModal}
         onClose={() => setShowSubconceptModal(false)}
         onSuccess={handleSubconceptCreated}
-        conceptId={formData.conceptId}
       />
     </div>
   );

@@ -24,9 +24,12 @@ export const recurringExpenseService = {
         ...expenseData,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        isActive: true,
+        isActive: expenseData.isActive !== undefined ? expenseData.isActive : true,
         lastGenerated: null,
-        generatedMonths: expenseData.generatedMonths || [], // Use provided array or empty array
+        generatedDates: expenseData.generatedDates || [], // New field for tracking specific dates
+        // Keep backward compatibility
+        generatedMonths: expenseData.generatedMonths || [],
+        frequency: expenseData.frequency || 'monthly', // Default to monthly for backward compatibility
       });
 
       return { id: docRef.id, ...expenseData };
@@ -89,26 +92,33 @@ export const recurringExpenseService = {
     }
   },
 
-  // Generate pending transactions for the current month
+  // Generate pending transactions based on frequency (daily check)
   async generatePendingTransactions(user) {
     try {
       const activeExpenses = await this.getAll({ isActive: true });
-      const now = new Date();
-      const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      const currentMonthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth()).padStart(2, '0')}`; // Format: YYYY-MM
+      const today = new Date();
+      const todayKey = this.formatDateKey(today);
       const generatedTransactions = [];
 
-      console.log(`Checking recurring expenses for current month: ${currentMonthKey}`);
+      console.log(`Checking recurring expenses for date: ${todayKey}`);
 
       for (const expense of activeExpenses) {
-        // Initialize generatedMonths array if it doesn't exist (for backward compatibility)
-        const generatedMonths = expense.generatedMonths || [];
+        // Initialize generatedDates array if it doesn't exist (for backward compatibility)
+        const generatedDates = expense.generatedDates || expense.generatedMonths || [];
+        const frequency = expense.frequency || 'monthly'; // Default to monthly for backward compatibility
+        const startDate = expense.startDate ? (expense.startDate.toDate ? expense.startDate.toDate() : new Date(expense.startDate)) : null;
         
-        // Check if we already generated for current month using the generatedMonths array
-        const alreadyGenerated = generatedMonths.includes(currentMonthKey);
+        // Skip if start date is in the future
+        if (startDate && startDate > today) {
+          console.log(`Skipping expense ${expense.id} - start date is in the future`);
+          continue;
+        }
 
-        if (!alreadyGenerated) {
-          // Create the transaction for current month
+        // Check if we should generate based on frequency
+        const shouldGenerate = this.shouldGenerateForDate(today, frequency, generatedDates, startDate);
+
+        if (shouldGenerate) {
+          // Create the transaction for today
           const transactionData = {
             type: "salida",
             generalId: expense.generalId,
@@ -116,7 +126,7 @@ export const recurringExpenseService = {
             subconceptId: expense.subconceptId,
             description: `${expense.description} (Recurrente)`,
             amount: expense.amount,
-            date: currentMonth,
+            date: today,
             providerId: expense.providerId,
             division: expense.division,
             isRecurring: true,
@@ -126,29 +136,74 @@ export const recurringExpenseService = {
           const newTransaction = await transactionService.create(transactionData, user);
           generatedTransactions.push(newTransaction);
 
-          // Update the lastGenerated date and add the month to generatedMonths array
-          const updatedGeneratedMonths = [...generatedMonths, currentMonthKey];
+          // Update the lastGenerated date and add the date to generatedDates array
+          const updatedGeneratedDates = [...generatedDates, todayKey];
           await this.update(expense.id, { 
             lastGenerated: serverTimestamp(),
-            generatedMonths: updatedGeneratedMonths
+            generatedDates: updatedGeneratedDates,
+            // Keep backward compatibility with generatedMonths for monthly expenses
+            ...(frequency === 'monthly' && {
+              generatedMonths: updatedGeneratedDates
+            })
           }, user);
           
-          console.log(`Generated recurring transaction for expense ${expense.id} for current month ${currentMonthKey}`);
+          console.log(`Generated recurring transaction for expense ${expense.id} (${frequency}) for date ${todayKey}`);
         } else {
-          console.log(`Skipping recurring expense ${expense.id} - already generated for current month ${currentMonthKey}`);
+          console.log(`Skipping recurring expense ${expense.id} - not due for generation on ${todayKey}`);
         }
       }
 
       if (generatedTransactions.length > 0) {
-        console.log(`Generated ${generatedTransactions.length} new recurring transactions for current month ${currentMonthKey}`);
+        console.log(`Generated ${generatedTransactions.length} new recurring transactions for date ${todayKey}`);
       } else {
-        console.log(`No new recurring transactions needed for current month ${currentMonthKey}`);
+        console.log(`No new recurring transactions needed for date ${todayKey}`);
       }
 
       return generatedTransactions;
     } catch (error) {
       console.error("Error generating pending transactions:", error);
       throw new Error("Error al generar transacciones pendientes");
+    }
+  },
+
+  // Helper method to format date as YYYY-MM-DD
+  formatDateKey(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  },
+
+  // Helper method to determine if we should generate a transaction for a given date
+  shouldGenerateForDate(currentDate, frequency, generatedDates, startDate) {
+    const dateKey = this.formatDateKey(currentDate);
+    
+    // Check if already generated for this exact date
+    if (generatedDates.includes(dateKey)) {
+      return false;
+    }
+
+    // Check based on frequency
+    switch (frequency) {
+      case 'daily':
+        return true; // Generate every day (if not already generated)
+        
+      case 'weekly':
+        // Generate every Monday (day 1, where Sunday = 0)
+        return currentDate.getDay() === 1;
+        
+      case 'biweekly':
+        // Generate on 15th and last day of month
+        const day = currentDate.getDate();
+        const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+        return day === 15 || day === lastDayOfMonth;
+        
+      case 'monthly':
+        // Generate on 1st of month (backward compatibility)
+        return currentDate.getDate() === 1;
+        
+      default:
+        return false;
     }
   },
 
@@ -303,23 +358,31 @@ export const recurringExpenseService = {
   async migrateExistingExpenses() {
     try {
       const allExpenses = await this.getAll();
-      const expensesToMigrate = allExpenses.filter(expense => !expense.generatedMonths);
+      const expensesToMigrate = allExpenses.filter(expense => 
+        !expense.generatedMonths && !expense.generatedDates && !expense.frequency
+      );
       
       console.log(`Found ${expensesToMigrate.length} recurring expenses to migrate`);
       
       for (const expense of expensesToMigrate) {
-        const generatedMonths = [];
+        const updateData = {
+          generatedMonths: [],
+          generatedDates: [],
+          frequency: 'monthly' // Default to monthly for backward compatibility
+        };
         
         // If lastGenerated exists, we can infer some generated months
         if (expense.lastGenerated) {
           const lastGeneratedDate = expense.lastGenerated.toDate();
           const monthKey = `${lastGeneratedDate.getFullYear()}-${String(lastGeneratedDate.getMonth()).padStart(2, '0')}`;
-          generatedMonths.push(monthKey);
+          const dateKey = this.formatDateKey(lastGeneratedDate);
+          updateData.generatedMonths.push(monthKey);
+          updateData.generatedDates.push(dateKey);
         }
         
-        // Update the expense with the new generatedMonths field
-        await this.update(expense.id, { generatedMonths }, { uid: 'system-migration' });
-        console.log(`Migrated recurring expense ${expense.id} with generatedMonths: ${generatedMonths.join(', ')}`);
+        // Update the expense with the new fields
+        await this.update(expense.id, updateData, { uid: 'system-migration' });
+        console.log(`Migrated recurring expense ${expense.id} with frequency: ${updateData.frequency}, dates: ${updateData.generatedDates.join(', ')}`);
       }
       
       console.log(`Migration completed for ${expensesToMigrate.length} recurring expenses`);

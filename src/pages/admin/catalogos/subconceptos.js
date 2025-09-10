@@ -4,8 +4,6 @@ import AdminLayout from "../../../components/layout/AdminLayout";
 import SubconceptModal from "../../../components/forms/SubconceptModal";
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { subconceptService } from "../../../lib/services/subconceptService";
-import { conceptService } from "../../../lib/services/conceptService";
-import { generalService } from "../../../lib/services/generalService";
 import { useAuth } from "../..//..//context/AuthContext";
 
 export default function SubconceptosPage() {
@@ -13,15 +11,11 @@ export default function SubconceptosPage() {
   const router = useRouter();
 
   const [subconcepts, setSubconcepts] = useState([]);
-  const [concepts, setConcepts] = useState([]);
-  const [generals, setGenerals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-
   const [editingSubconcept, setEditingSubconcept] = useState(null);
-  const [filterConcept, setFilterConcept] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
@@ -40,16 +34,10 @@ export default function SubconceptosPage() {
       setLoading(true);
       setError(null);
 
-      // Load subconcepts, concepts, and generals
-      const [subconceptsData, conceptsData, generalsData] = await Promise.all([
-        subconceptService.getAll(),
-        conceptService.getAll(),
-        generalService.getAll(),
-      ]);
+      // Load subconcepts only - no need for concepts and generals anymore
+      const subconceptsData = await subconceptService.getAll();
 
       setSubconcepts(subconceptsData);
-      setConcepts(conceptsData);
-      setGenerals(generalsData);
     } catch (err) {
       setError(err.message);
       console.error("Error loading data:", err);
@@ -89,43 +77,9 @@ export default function SubconceptosPage() {
     await loadData(); // Reload the list
   };
 
-
-
-
-
-  const getConceptName = (conceptId) => {
-    const concept = concepts.find((c) => c.id === conceptId);
-    return concept ? concept.name : "Concepto no encontrado";
-  };
-
-  const getFullConceptPath = (conceptId) => {
-    const concept = concepts.find((c) => c.id === conceptId);
-    if (!concept) return "Concepto no encontrado";
-    
-    const general = generals.find((g) => g.id === concept.generalId);
-    const generalName = general ? general.name : "Sin general";
-    
-    return `${generalName} > ${concept.name}`;
-  };
-
-  const getConceptType = (conceptId) => {
-    const concept = concepts.find((c) => c.id === conceptId);
-    if (!concept) return "";
-    
-    // Get the type from the general (parent of concept)
-    const general = generals.find((g) => g.id === concept.generalId);
-    return general ? general.type : "";
-  };
-
   const filteredSubconcepts = subconcepts.filter((subconcept) => {
-    const matchesFilter =
-      filterConcept === "all" || subconcept.conceptId === filterConcept;
-    const matchesSearch =
-      subconcept.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      getConceptName(subconcept.conceptId)
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase());
-    return matchesFilter && matchesSearch;
+    const matchesSearch = subconcept.name.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesSearch;
   });
 
   const breadcrumbs = [
@@ -152,7 +106,7 @@ export default function SubconceptosPage() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Subconceptos</h1>
             <p className="mt-1 text-sm text-gray-600">
-              Gestiona los subconceptos asociados a conceptos
+              Gestiona los subconceptos para categorización detallada
             </p>
           </div>
           <div className="mt-4 sm:mt-0 flex space-x-3">
@@ -183,35 +137,6 @@ export default function SubconceptosPage() {
         {/* Filters */}
         <div className="bg-white p-4 rounded-lg shadow">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
-            <div className="flex space-x-4">
-              <div>
-                <label
-                  htmlFor="filterConcept"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Filtrar por concepto
-                </label>
-                <select
-                  id="filterConcept"
-                  value={filterConcept}
-                  onChange={(e) => setFilterConcept(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-blue-500"
-                >
-                  <option value="all">Todos los conceptos</option>
-                  {concepts.map((concept) => {
-                    const general = generals.find((g) => g.id === concept.generalId);
-                    const generalName = general ? general.name : "Sin general";
-                    const type = general ? general.type : "";
-                    return (
-                      <option key={concept.id} value={concept.id}>
-                        {generalName} &gt; {concept.name} ({type === "entrada" ? "Ingreso" : "Gasto"})
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
-            </div>
-
             <div className="flex-1 max-w-md">
               <label
                 htmlFor="search"
@@ -278,12 +203,6 @@ export default function SubconceptosPage() {
                       Nombre
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Concepto
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Tipo
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Fecha de Creación
                     </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -294,7 +213,7 @@ export default function SubconceptosPage() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredSubconcepts.length === 0 ? (
                     <tr>
-                      <td colSpan="5" className="px-6 py-12 text-center">
+                      <td colSpan="3" className="px-6 py-12 text-center">
                         <div className="text-gray-500">
                           <svg
                             className="mx-auto h-12 w-12 mb-4"
@@ -313,8 +232,8 @@ export default function SubconceptosPage() {
                             No hay subconceptos
                           </p>
                           <p className="text-sm">
-                            {searchTerm || filterConcept !== "all"
-                              ? "No se encontraron subconceptos con los filtros aplicados"
+                            {searchTerm
+                              ? "No se encontraron subconceptos con el término de búsqueda"
                               : "Comienza creando tu primer subconcepto"}
                           </p>
                         </div>
@@ -327,22 +246,6 @@ export default function SubconceptosPage() {
                           <div className="text-sm font-medium text-gray-900">
                             {subconcept.name}
                           </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
-                            {getFullConceptPath(subconcept.conceptId)}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                              getConceptType(subconcept.conceptId) === "entrada"
-                                ? "bg-green-100 text-green-800"
-                                : "bg-red-100 text-red-800"
-                            }`}
-                          >
-                            {getConceptType(subconcept.conceptId) === "entrada" ? "Ingreso" : "Gasto"}
-                          </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {subconcept.createdAt?.toDate

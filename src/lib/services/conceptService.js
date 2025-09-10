@@ -211,9 +211,7 @@ export const conceptService = {
       errors.type = 'El tipo debe ser "entrada" o "salida"';
     }
 
-    if (!conceptData.generalId || conceptData.generalId.trim() === '') {
-      errors.generalId = 'La categoría general es requerida';
-    }
+    // Removed generalId requirement - concepts are now independent
     
     return {
       isValid: Object.keys(errors).length === 0,

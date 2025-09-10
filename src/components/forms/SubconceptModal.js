@@ -1,47 +1,25 @@
 import { useState, useEffect } from 'react';
 import { subconceptService } from '../../lib/services/subconceptService';
-import { conceptService } from '../../lib/services/conceptService';
 
 const SubconceptModal = ({ 
   isOpen, 
   onClose, 
   onSuccess, 
-  conceptId,
   initialData = null 
 }) => {
   const [formData, setFormData] = useState({
-    name: initialData?.name || '',
-    conceptId: conceptId || initialData?.conceptId || ''
+    name: initialData?.name || ''
   });
-  const [concepts, setConcepts] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [loadingConcepts, setLoadingConcepts] = useState(false);
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    if (isOpen) {
-      loadConcepts();
+    if (isOpen && initialData) {
+      setFormData({
+        name: initialData.name || ''
+      });
     }
-  }, [isOpen]);
-
-  useEffect(() => {
-    setFormData({
-      name: initialData?.name || '',
-      conceptId: conceptId || initialData?.conceptId || ''
-    });
-  }, [conceptId, initialData]);
-
-  const loadConcepts = async () => {
-    try {
-      setLoadingConcepts(true);
-      const conceptsData = await conceptService.getAll();
-      setConcepts(conceptsData);
-    } catch (error) {
-      console.error('Error loading concepts:', error);
-    } finally {
-      setLoadingConcepts(false);
-    }
-  };
+  }, [isOpen, initialData]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -88,8 +66,7 @@ const SubconceptModal = ({
       
       // Reset form
       setFormData({
-        name: '',
-        conceptId: conceptId || ''
+        name: ''
       });
       setErrors({});
     } catch (error) {
@@ -105,8 +82,7 @@ const SubconceptModal = ({
   const handleClose = () => {
     onClose();
     setFormData({
-      name: '',
-      conceptId: conceptId || ''
+      name: ''
     });
     setErrors({});
   };
@@ -140,7 +116,7 @@ const SubconceptModal = ({
           )}
 
           {/* Name Field */}
-          <div className="mb-4">
+          <div className="mb-6">
             <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
               Nombre del Subconcepto <span className="text-red-500">*</span>
             </label>
@@ -158,40 +134,6 @@ const SubconceptModal = ({
             />
             {errors.name && (
               <p className="mt-1 text-sm text-red-600">{errors.name}</p>
-            )}
-          </div>
-
-          {/* Concept Selection */}
-          <div className="mb-6">
-            <label htmlFor="conceptId" className="block text-sm font-medium text-gray-700 mb-2">
-              Concepto <span className="text-red-500">*</span>
-            </label>
-            {loadingConcepts ? (
-              <div className="flex items-center justify-center py-2">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-500"></div>
-                <span className="ml-2 text-sm text-gray-500">Cargando conceptos...</span>
-              </div>
-            ) : (
-              <select
-                id="conceptId"
-                name="conceptId"
-                value={formData.conceptId}
-                onChange={handleInputChange}
-                className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500 ${
-                  errors.conceptId ? 'border-red-300' : 'border-gray-300'
-                }`}
-                disabled={loading || !!conceptId}
-              >
-                <option value="">Selecciona un concepto</option>
-                {concepts.map(concept => (
-                  <option key={concept.id} value={concept.id}>
-                    {concept.name} ({concept.type === 'entrada' ? 'Ingreso' : 'Gasto'})
-                  </option>
-                ))}
-              </select>
-            )}
-            {errors.conceptId && (
-              <p className="mt-1 text-sm text-red-600">{errors.conceptId}</p>
             )}
           </div>
 

@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { conceptService } from "../../lib/services/conceptService";
-import { generalService } from "../../lib/services/generalService";
 
 const ConceptModal = ({
   isOpen,
@@ -12,31 +11,19 @@ const ConceptModal = ({
   const [formData, setFormData] = useState({
     name: initialData?.name || "",
     type: type || initialData?.type || "entrada",
-    generalId: initialData?.generalId || "",
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
-  const [generals, setGenerals] = useState([]);
-  const [loadingGenerals, setLoadingGenerals] = useState(false);
 
-  // Load generals when modal opens
+  // Load data when modal opens - no need to load generals anymore
   useEffect(() => {
-    if (isOpen) {
-      loadGenerals();
+    if (isOpen && initialData) {
+      setFormData({
+        name: initialData.name || "",
+        type: initialData.type || "entrada",
+      });
     }
-  }, [isOpen]);
-
-  const loadGenerals = async () => {
-    try {
-      setLoadingGenerals(true);
-      const generalsData = await generalService.getAll();
-      setGenerals(generalsData);
-    } catch (error) {
-      console.error('Error loading generals:', error);
-    } finally {
-      setLoadingGenerals(false);
-    }
-  };
+  }, [isOpen, initialData]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -50,21 +37,6 @@ const ConceptModal = ({
         ...prev,
         [name]: null,
       }));
-    }
-  };
-
-  const handleGeneralChange = (e) => {
-    const newGeneralId = e.target.value;
-    const selectedGeneral = generals.find(g => g.id === newGeneralId);
-    setFormData(prev => ({
-      ...prev,
-      generalId: newGeneralId,
-      // Automatically set type based on the selected general
-      type: selectedGeneral?.type || prev.type,
-    }));
-
-    if (errors.generalId) {
-      setErrors(prev => ({ ...prev, generalId: null }));
     }
   };
 
@@ -98,7 +70,6 @@ const ConceptModal = ({
       setFormData({
         name: "",
         type: type || "entrada",
-        generalId: "",
       });
     } catch (error) {
       setErrors({ submit: error.message });
@@ -182,33 +153,26 @@ const ConceptModal = ({
 
           <div className="mb-4">
             <label
-              htmlFor="generalId"
+              htmlFor="type"
               className="block text-sm font-medium text-gray-700 mb-2"
             >
-              Categoría General *
+              Tipo *
             </label>
             <select
-              id="generalId"
-              name="generalId"
-              value={formData.generalId}
-              onChange={handleGeneralChange}
-              disabled={loading || loadingGenerals}
+              id="type"
+              name="type"
+              value={formData.type}
+              onChange={handleInputChange}
+              disabled={loading}
               className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-orange-500 focus:border-blue-500 ${
-                errors.generalId ? "border-red-300" : "border-gray-300"
-              } ${loading || loadingGenerals ? "bg-gray-50" : ""}`}
+                errors.type ? "border-red-300" : "border-gray-300"
+              }`}
             >
-              <option value="">Selecciona una categoría general</option>
-              {generals.map((general) => (
-                <option key={general.id} value={general.id}>
-                  {general.name} ({general.type === 'entrada' ? 'Ingreso' : 'Gasto'})
-                </option>
-              ))}
+              <option value="entrada">Ingreso</option>
+              <option value="salida">Gasto</option>
             </select>
-            {errors.generalId && (
-              <p className="mt-1 text-sm text-red-600">{errors.generalId}</p>
-            )}
-            {loadingGenerals && (
-              <p className="mt-1 text-sm text-gray-500">Cargando categorías...</p>
+            {errors.type && (
+              <p className="mt-1 text-sm text-red-600">{errors.type}</p>
             )}
           </div>
 

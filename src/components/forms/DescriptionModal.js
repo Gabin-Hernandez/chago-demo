@@ -1,47 +1,25 @@
 import { useState, useEffect } from 'react';
 import { descriptionService } from '../../lib/services/descriptionService';
-import { conceptService } from '../../lib/services/conceptService';
 
 const DescriptionModal = ({ 
   isOpen, 
   onClose, 
   onSuccess, 
-  conceptId,
   initialData = null 
 }) => {
   const [formData, setFormData] = useState({
-    name: initialData?.name || '',
-    conceptId: conceptId || initialData?.conceptId || ''
+    name: initialData?.name || ''
   });
-  const [concepts, setConcepts] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [loadingConcepts, setLoadingConcepts] = useState(false);
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    if (isOpen) {
-      loadConcepts();
+    if (isOpen && initialData) {
+      setFormData({
+        name: initialData.name || ''
+      });
     }
-  }, [isOpen]);
-
-  useEffect(() => {
-    setFormData({
-      name: initialData?.name || '',
-      conceptId: conceptId || initialData?.conceptId || ''
-    });
-  }, [conceptId, initialData]);
-
-  const loadConcepts = async () => {
-    try {
-      setLoadingConcepts(true);
-      const conceptsData = await conceptService.getAll();
-      setConcepts(conceptsData);
-    } catch (error) {
-      console.error('Error loading concepts:', error);
-    } finally {
-      setLoadingConcepts(false);
-    }
-  };
+  }, [isOpen, initialData]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -87,8 +65,7 @@ const DescriptionModal = ({
       
       // Reset form
       setFormData({
-        name: '',
-        conceptId: conceptId || ''
+        name: ''
       });
     } catch (error) {
       setErrors({ submit: error.message });
@@ -139,43 +116,6 @@ const DescriptionModal = ({
               <p className="text-sm text-red-600">{errors.submit}</p>
             </div>
           )}
-
-          <div className="mb-4">
-            <label htmlFor="conceptId" className="block text-sm font-medium text-gray-700 mb-2">
-              Concepto *
-            </label>
-            {loadingConcepts ? (
-              <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500">
-                Cargando conceptos...
-              </div>
-            ) : (
-              <select
-                id="conceptId"
-                name="conceptId"
-                value={formData.conceptId}
-                onChange={handleInputChange}
-                disabled={loading || !!conceptId} // Disable if conceptId is passed as prop
-                className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-orange-500 focus:border-blue-500 ${
-                  errors.conceptId ? 'border-red-300' : 'border-gray-300'
-                } ${(loading || !!conceptId) ? 'bg-gray-50' : ''}`}
-              >
-                <option value="">Seleccionar concepto</option>
-                {concepts.map((concept) => (
-                  <option key={concept.id} value={concept.id}>
-                    {concept.name} ({concept.type === 'entrada' ? 'Entrada' : 'Salida'})
-                  </option>
-                ))}
-              </select>
-            )}
-            {errors.conceptId && (
-              <p className="mt-1 text-sm text-red-600">{errors.conceptId}</p>
-            )}
-            {conceptId && (
-              <p className="mt-1 text-sm text-gray-500">
-                Asociada al concepto: {getConceptName(conceptId)}
-              </p>
-            )}
-          </div>
 
           <div className="mb-6">
             <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">

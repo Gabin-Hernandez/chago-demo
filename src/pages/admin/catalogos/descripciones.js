@@ -3,8 +3,6 @@ import { useRouter } from "next/router";
 import AdminLayout from "../../../components/layout/AdminLayout";
 import DescriptionModal from "../../../components/forms/DescriptionModal";
 import { descriptionService } from "../../../lib/services/descriptionService";
-import { conceptService } from "../../../lib/services/conceptService";
-import { generalService } from "../../../lib/services/generalService";
 import { useAuth } from "../../../context/AuthContext";
 
 export default function DescripcionesPage() {
@@ -12,13 +10,10 @@ export default function DescripcionesPage() {
   const router = useRouter();
 
   const [descriptions, setDescriptions] = useState([]);
-  const [concepts, setConcepts] = useState([]);
-  const [generals, setGenerals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDescription, setEditingDescription] = useState(null);
-  const [filterConcept, setFilterConcept] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
@@ -37,16 +32,10 @@ export default function DescripcionesPage() {
       setLoading(true);
       setError(null);
 
-      // Load descriptions, concepts, and generals
-      const [descriptionsData, conceptsData, generalsData] = await Promise.all([
-        descriptionService.getAll(),
-        conceptService.getAll(),
-        generalService.getAll(),
-      ]);
+      // Load descriptions only - no need for concepts and generals anymore
+      const descriptionsData = await descriptionService.getAll();
 
       setDescriptions(descriptionsData);
-      setConcepts(conceptsData);
-      setGenerals(generalsData);
     } catch (err) {
       setError(err.message);
       console.error("Error loading data:", err);
@@ -86,29 +75,9 @@ export default function DescripcionesPage() {
     await loadData(); // Reload the list
   };
 
-  const getConceptName = (conceptId) => {
-    const concept = concepts.find((c) => c.id === conceptId);
-    return concept ? concept.name : "Concepto no encontrado";
-  };
-
-  const getConceptType = (conceptId) => {
-    const concept = concepts.find((c) => c.id === conceptId);
-    if (!concept) return "";
-    
-    // Get the type from the general (parent of concept)
-    const general = generals.find((g) => g.id === concept.generalId);
-    return general ? general.type : "";
-  };
-
   const filteredDescriptions = descriptions.filter((description) => {
-    const matchesFilter =
-      filterConcept === "all" || description.conceptId === filterConcept;
-    const matchesSearch =
-      description.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      getConceptName(description.conceptId)
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase());
-    return matchesFilter && matchesSearch;
+    const matchesSearch = description.name.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesSearch;
   });
 
   const breadcrumbs = [
@@ -135,7 +104,7 @@ export default function DescripcionesPage() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Descripciones</h1>
             <p className="mt-1 text-sm text-gray-600">
-              Gestiona las descripciones asociadas a conceptos
+              Gestiona las descripciones para categorizar transacciones
             </p>
           </div>
           <button
@@ -162,31 +131,6 @@ export default function DescripcionesPage() {
         {/* Filters */}
         <div className="bg-white p-4 rounded-lg shadow">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
-            <div className="flex space-x-4">
-              <div>
-                <label
-                  htmlFor="filterConcept"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Filtrar por concepto
-                </label>
-                <select
-                  id="filterConcept"
-                  value={filterConcept}
-                  onChange={(e) => setFilterConcept(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-blue-500"
-                >
-                  <option value="all">Todos los conceptos</option>
-                  {concepts.map((concept) => (
-                    <option key={concept.id} value={concept.id}>
-                      {concept.name} (
-                      {concept.type === "entrada" ? "Ingreso" : "Gasto"})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
             <div className="flex-1 max-w-md">
               <label
                 htmlFor="search"
@@ -253,12 +197,6 @@ export default function DescripcionesPage() {
                       Descripción
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Concepto
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Tipo
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Fecha de Creación
                     </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -269,7 +207,7 @@ export default function DescripcionesPage() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredDescriptions.length === 0 ? (
                     <tr>
-                      <td colSpan="5" className="px-6 py-12 text-center">
+                      <td colSpan="3" className="px-6 py-12 text-center">
                         <div className="text-gray-500">
                           <svg
                             className="mx-auto h-12 w-12 mb-4"
@@ -288,7 +226,7 @@ export default function DescripcionesPage() {
                             No hay descripciones
                           </p>
                           <p className="text-sm">
-                            {searchTerm || filterConcept !== "all"
+                            {searchTerm
                               ? "No se encontraron descripciones con los filtros aplicados"
                               : "Comienza creando tu primera descripción"}
                           </p>
@@ -302,25 +240,6 @@ export default function DescripcionesPage() {
                           <div className="text-sm font-medium text-gray-900">
                             {description.name}
                           </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
-                            {getConceptName(description.conceptId)}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                              getConceptType(description.conceptId) ===
-                              "entrada"
-                                ? "bg-green-100 text-green-800"
-                                : "bg-red-100 text-red-800"
-                            }`}
-                          >
-                            {getConceptType(description.conceptId) === "entrada"
-                              ? "Ingreso"
-                              : "Gasto"}
-                          </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {description.createdAt?.toDate

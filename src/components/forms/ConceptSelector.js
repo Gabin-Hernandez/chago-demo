@@ -1,9 +1,8 @@
-import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle, useCallback } from 'react';
 import { conceptService } from '../../lib/services/conceptService';
 
 const ConceptSelector = forwardRef(({ 
   type, 
-  generalId,
   value, 
   onChange, 
   onCreateNew,
@@ -16,25 +15,24 @@ const ConceptSelector = forwardRef(({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const loadConcepts = async () => {
+  const loadConcepts = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      // Always fetch by type; if a general is chosen, filter client-side to avoid composite index requirements
-      const allByType = await conceptService.getByType(type);
-      const filtered = generalId ? allByType.filter(c => c.generalId === generalId) : allByType;
-      setConcepts(filtered);
+      // Fetch all concepts by type - no general filtering needed anymore
+      const conceptsData = await conceptService.getByType(type);
+      setConcepts(conceptsData);
     } catch (err) {
       setError(err.message);
       console.error('Error loading concepts:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [type]);
 
   useEffect(() => {
     loadConcepts();
-  }, [type, generalId]);
+  }, [type, loadConcepts]);
 
   const handleSelectChange = (e) => {
     const selectedValue = e.target.value;

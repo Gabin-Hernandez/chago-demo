@@ -1,8 +1,7 @@
-import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle, useCallback } from 'react';
 import { subconceptService } from '../../lib/services/subconceptService';
 
 const SubconceptSelector = forwardRef(({ 
-  conceptId,
   value, 
   onChange, 
   onCreateNew,
@@ -15,15 +14,12 @@ const SubconceptSelector = forwardRef(({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const loadSubconcepts = async () => {
-    if (!conceptId) {
-      setSubconcepts([]);
-      return;
-    }
+  const loadSubconcepts = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await subconceptService.getByConcept(conceptId);
+      // Load all subconcepts - no concept filtering needed anymore
+      const data = await subconceptService.getAll();
       setSubconcepts(data);
     } catch (err) {
       setError(err.message);
@@ -31,11 +27,11 @@ const SubconceptSelector = forwardRef(({
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadSubconcepts();
-  }, [conceptId]);
+  }, [loadSubconcepts]);
 
   const handleSelectChange = (e) => {
     const selectedValue = e.target.value;
@@ -51,16 +47,6 @@ const SubconceptSelector = forwardRef(({
   };
 
   useImperativeHandle(ref, () => ({ refreshSubconcepts }));
-
-  if (!conceptId) {
-    return (
-      <div className={`relative ${className}`}>
-        <select disabled className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500">
-          <option>Primero selecciona un concepto</option>
-        </select>
-      </div>
-    );
-  }
 
   if (loading) {
     return (

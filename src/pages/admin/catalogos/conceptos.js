@@ -5,7 +5,6 @@ import ConceptModal from "../../../components/forms/ConceptModal";
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import MassiveCsvImportModal from "../../../components/forms/MassiveCsvImportModal";
 import { conceptService } from "../../../lib/services/conceptService";
-import { generalService } from "../../../lib/services/generalService";
 import { useAuth } from "../../../context/AuthContext";
 
 export default function ConceptosPage() {
@@ -16,14 +15,13 @@ export default function ConceptosPage() {
   const canDeleteCatalogItems = checkPermission("canDeleteCatalogItems");
 
   const [concepts, setConcepts] = useState([]);
-  const [generals, setGenerals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [isMassiveImportModalOpen, setIsMassiveImportModalOpen] = useState(false);
   const [editingConcept, setEditingConcept] = useState(null);
-  const [filterGeneral, setFilterGeneral] = useState("all");
+  const [filterType, setFilterType] = useState("all"); // Changed from filterGeneral
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
@@ -42,14 +40,10 @@ export default function ConceptosPage() {
       setLoading(true);
       setError(null);
 
-      // Load concepts and generals
-      const [conceptsData, generalsData] = await Promise.all([
-        conceptService.getAll(),
-        generalService.getAll(),
-      ]);
+      // Load concepts only - no need for generals anymore
+      const conceptsData = await conceptService.getAll();
 
       setConcepts(conceptsData);
-      setGenerals(generalsData);
     } catch (err) {
       setError(err.message);
       console.error("Error loading data:", err);
@@ -95,24 +89,10 @@ export default function ConceptosPage() {
     await loadData(); // Reload the list after massive import
   };
 
-  const getGeneralName = (generalId) => {
-    const general = generals.find(g => g.id === generalId);
-    return general ? general.name : 'General no encontrado';
-  };
-
-  const getGeneralType = (generalId) => {
-    const general = generals.find(g => g.id === generalId);
-    return general ? general.type : '';
-  };
-
   const filteredConcepts = concepts.filter((concept) => {
-    const matchesGeneralFilter = filterGeneral === "all" || concept.generalId === filterGeneral;
-    const matchesSearch =
-      concept.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      getGeneralName(concept.generalId)
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase());
-    return matchesGeneralFilter && matchesSearch;
+    const matchesTypeFilter = filterType === "all" || concept.type === filterType;
+    const matchesSearch = concept.name.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesTypeFilter && matchesSearch;
   });
 
   const breadcrumbs = [
@@ -139,7 +119,7 @@ export default function ConceptosPage() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Conceptos</h1>
             <p className="mt-1 text-sm text-gray-600">
-              Gestiona los conceptos asociados a generales
+              Gestiona los conceptos para categorizar transacciones
             </p>
           </div>
           <div className="mt-4 sm:mt-0 flex space-x-3">
@@ -191,23 +171,20 @@ export default function ConceptosPage() {
             <div className="flex space-x-4">
               <div>
                 <label
-                  htmlFor="filterGeneral"
+                  htmlFor="filterType"
                   className="block text-sm font-medium text-gray-700 mb-1"
                 >
-                  Filtrar por general
+                  Filtrar por tipo
                 </label>
                 <select
-                  id="filterGeneral"
-                  value={filterGeneral}
-                  onChange={(e) => setFilterGeneral(e.target.value)}
+                  id="filterType"
+                  value={filterType}
+                  onChange={(e) => setFilterType(e.target.value)}
                   className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-blue-500"
                 >
-                  <option value="all">Todos los generales</option>
-                  {generals.map((general) => (
-                    <option key={general.id} value={general.id}>
-                      {general.name} ({general.type === "entrada" ? "Ingreso" : "Gasto"})
-                    </option>
-                  ))}
+                  <option value="all">Todos los tipos</option>
+                  <option value="entrada">Ingresos</option>
+                  <option value="salida">Gastos</option>
                 </select>
               </div>
             </div>
@@ -278,9 +255,6 @@ export default function ConceptosPage() {
                       Nombre
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      General
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Tipo
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -294,7 +268,7 @@ export default function ConceptosPage() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredConcepts.length === 0 ? (
                     <tr>
-                      <td colSpan="5" className="px-6 py-12 text-center">
+                      <td colSpan="4" className="px-6 py-12 text-center">
                         <div className="text-gray-500">
                           <svg
                             className="mx-auto h-12 w-12 mb-4"
@@ -313,7 +287,7 @@ export default function ConceptosPage() {
                             No hay conceptos
                           </p>
                           <p className="text-sm">
-                            {searchTerm || filterGeneral !== "all"
+                            {searchTerm || filterType !== "all"
                               ? "No se encontraron conceptos con los filtros aplicados"
                               : "Comienza creando tu primer concepto"}
                           </p>
@@ -329,19 +303,14 @@ export default function ConceptosPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
-                            {getGeneralName(concept.generalId)}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
                           <span
                             className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                              getGeneralType(concept.generalId) === "entrada"
+                              concept.type === "entrada"
                                 ? "bg-green-100 text-green-800"
                                 : "bg-red-100 text-red-800"
                             }`}
                           >
-                            {getGeneralType(concept.generalId) === "entrada" ? "Ingreso" : "Gasto"}
+                            {concept.type === "entrada" ? "Ingreso" : "Gasto"}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

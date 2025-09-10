@@ -6,30 +6,26 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Verify the request is coming from a trusted source
+    // Verify the request is coming from a trusted source (optional in development)
     const { authorization } = req.headers;
-    const cronSecret = process.env.CRON_SECRET || 'your-secret-key';
+    const cronSecret = process.env.CRON_SECRET;
     
-    if (!authorization || authorization !== `Bearer ${cronSecret}`) {
+    // Only validate authorization if CRON_SECRET is set
+    if (cronSecret && (!authorization || authorization !== `Bearer ${cronSecret}`)) {
       return res.status(401).json({ message: 'Unauthorized' });
     }
-
-    // Check if it's the first day of the month
-    const today = new Date();
-    const isFirstDayOfMonth = today.getDate() === 1;
     
-    if (!isFirstDayOfMonth) {
-      return res.status(200).json({
-        success: true,
-        message: 'Not the first day of the month, skipping generation',
-        transactions: []
-      });
+    // Log if running without security (for development)
+    if (!cronSecret) {
+      console.log('[CRON] Running without CRON_SECRET - development mode');
     }
 
-    // First, run migration for existing expenses that don't have generatedMonths
+    const today = new Date();
+    
+    // First, run migration for existing expenses that don't have the new fields
     await recurringExpenseService.migrateExistingExpenses();
     
-    // Generate pending transactions for current month
+    // Generate pending transactions for today (supports all frequencies)
     const generatedTransactions = await recurringExpenseService.generatePendingTransactions({
       uid: 'system-cron',
       email: 'system@santiago-fc.com'
@@ -42,7 +38,10 @@ export default async function handler(req, res) {
       success: true,
       message: `Generated ${generatedTransactions.length} recurring transactions`,
       transactions: generatedTransactions,
-      date: today.toISOString()
+      date: today.toISOString(),
+      executionDay: today.getDate(),
+      dayOfWeek: today.getDay(), // 0 = Sunday, 1 = Monday, etc.
+      lastDayOfMonth: new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate() === today.getDate()
     });
 
   } catch (error) {

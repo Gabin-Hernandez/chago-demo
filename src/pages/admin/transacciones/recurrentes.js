@@ -200,7 +200,7 @@ const GastosRecurrentes = () => {
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900">Gastos Recurrentes</h1>
                   <p className="text-gray-600 mt-1">
-                    Gestiona los gastos que se generan automáticamente cada mes
+                    Gestiona los gastos que se generan automáticamente según la frecuencia configurada
                   </p>
                   <div className="flex items-center mt-2 text-sm text-gray-500">
                     <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -213,7 +213,7 @@ const GastosRecurrentes = () => {
               {canManageTransactions && (
                 <div className="flex flex-col sm:flex-row gap-3">
                   <button
-                    onClick={() => router.push('/admin/transacciones/nueva-salida')}
+                    onClick={() => router.push('/admin/transacciones/recurrentes/nuevo')}
                     className="px-6 py-3 bg-rose-400 text-white rounded-xl hover:bg-rose-500 focus:ring-4 focus:ring-rose-400/20 focus:ring-offset-2 flex items-center justify-center transition-all duration-200 shadow-lg hover:shadow-xl font-medium"
                   >
                     <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -223,23 +223,6 @@ const GastosRecurrentes = () => {
                   </button>
                 </div>
               )}
-            </div>
-            
-            {/* Información sobre funcionamiento */}
-            <div className="mt-6 bg-green-50 border border-green-200 rounded-xl p-4">
-              <div className="flex items-start space-x-3">
-                <svg className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <div className="text-sm text-green-700">
-                  <p className="font-medium mb-1">🤖 Sistema Automático de Gastos Recurrentes</p>
-                  <ul className="space-y-1 text-green-600">
-                    <li>• <strong>Generación automática:</strong> Los gastos recurrentes se crean automáticamente al acceder al Dashboard</li>
-                    <li>• <strong>Activar/Desactivar:</strong> Controla qué gastos se generarán en futuros meses</li>
-                    <li>• <strong>Sin intervención manual:</strong> El sistema detecta y genera los gastos pendientes por ti</li>
-                  </ul>
-                </div>
-              </div>
             </div>
           </div>
 
@@ -312,10 +295,10 @@ const GastosRecurrentes = () => {
                   </div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">No hay gastos recurrentes</h3>
                   <p className="text-gray-600 mb-6">
-                    Crea tu primer gasto recurrente para automatizar los gastos mensuales
+                    Crea tu primer gasto recurrente con la frecuencia que necesites: diaria, semanal, quincenal o mensual
                   </p>
                   <button
-                    onClick={() => router.push('/admin/transacciones/salidas')}
+                    onClick={() => router.push('/admin/transacciones/recurrentes/nuevo')}
                     className="inline-flex items-center px-6 py-3 bg-rose-400 text-white rounded-xl hover:bg-rose-500 focus:ring-4 focus:ring-rose-400/20 transition-all duration-200 font-medium shadow-lg"
                   >
                     <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -337,6 +320,7 @@ const GastosRecurrentes = () => {
                         <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Concepto</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Subconcepto</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Proveedor</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Frecuencia</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Monto</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">División</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Acciones</th>
@@ -374,6 +358,19 @@ const GastosRecurrentes = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
                             {getProviderName(expense.providerId)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                              expense.frequency === 'daily' ? 'bg-purple-100 text-purple-800' :
+                              expense.frequency === 'weekly' ? 'bg-blue-100 text-blue-800' :
+                              expense.frequency === 'biweekly' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-green-100 text-green-800'
+                            }`}>
+                              {expense.frequency === 'daily' ? '📅 Diario' :
+                               expense.frequency === 'weekly' ? '📅 Semanal' :
+                               expense.frequency === 'biweekly' ? '📅 Quincenal' :
+                               '📅 Mensual'}
+                            </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
                             {formatCurrency(expense.amount)}
@@ -425,6 +422,17 @@ const GastosRecurrentes = () => {
                               </span>
                               <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-rose-100 text-rose-600">
                                 Recurrente
+                              </span>
+                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                expense.frequency === 'daily' ? 'bg-purple-100 text-purple-800' :
+                                expense.frequency === 'weekly' ? 'bg-blue-100 text-blue-800' :
+                                expense.frequency === 'biweekly' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-green-100 text-green-800'
+                              }`}>
+                                {expense.frequency === 'daily' ? 'Diario' :
+                                 expense.frequency === 'weekly' ? 'Semanal' :
+                                 expense.frequency === 'biweekly' ? 'Quincenal' :
+                                 'Mensual'}
                               </span>
                             </div>
                             <Switch

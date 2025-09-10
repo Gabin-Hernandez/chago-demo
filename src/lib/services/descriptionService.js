@@ -169,9 +169,7 @@ export const descriptionService = {
       errors.name = 'El nombre de la descripción es requerido';
     }
     
-    if (!descriptionData.conceptId || descriptionData.conceptId.trim() === '') {
-      errors.conceptId = 'El concepto es requerido';
-    }
+    // Removed conceptId requirement - descriptions are now independent
     
     return {
       isValid: Object.keys(errors).length === 0,

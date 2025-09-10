@@ -1,8 +1,7 @@
-import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle, useCallback } from 'react';
 import { descriptionService } from '../../lib/services/descriptionService';
 
 const DescriptionSelector = forwardRef(({ 
-  conceptId, 
   value, 
   onChange, 
   onCreateNew,
@@ -15,20 +14,12 @@ const DescriptionSelector = forwardRef(({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    if (conceptId) {
-      loadDescriptions();
-    } else {
-      setDescriptions([]);
-      setError(null);
-    }
-  }, [conceptId]);
-
-  const loadDescriptions = async () => {
+  const loadDescriptions = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const descriptionsData = await descriptionService.getByConcept(conceptId);
+      // Load all descriptions - no concept filtering needed anymore
+      const descriptionsData = await descriptionService.getAll();
       setDescriptions(descriptionsData);
     } catch (err) {
       setError(err.message);
@@ -36,7 +27,11 @@ const DescriptionSelector = forwardRef(({
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadDescriptions();
+  }, [loadDescriptions]);
 
   const handleSelectChange = (e) => {
     const selectedValue = e.target.value;
@@ -48,31 +43,15 @@ const DescriptionSelector = forwardRef(({
     }
   };
 
-  // This function can be called from parent component when a new description is created
+    // This function can be called from parent component when a new description is created
   const refreshDescriptions = async () => {
-    if (conceptId) {
-      await loadDescriptions();
-    }
+    await loadDescriptions();
   };
 
   // Expose refresh function to parent
   useImperativeHandle(ref, () => ({
     refreshDescriptions
   }));
-
-  // If no concept is selected, show disabled state
-  if (!conceptId) {
-    return (
-      <div className={`relative ${className}`}>
-        <select 
-          disabled 
-          className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500"
-        >
-          <option>Primero selecciona un concepto</option>
-        </select>
-      </div>
-    );
-  }
 
   if (loading) {
     return (
