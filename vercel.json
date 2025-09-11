@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/generate-recurring",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/calculate-carryover",
+      "schedule": "0 0 1 * *"
     }
   ]
 }

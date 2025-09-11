@@ -33,7 +33,6 @@ const Reportes = () => {
   const { showIncomeInBreakdown, toggleShowIncomeInBreakdown } = useReportStore();
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const [processingCarryover, setProcessingCarryover] = useState(false);
   const [transactions, setTransactions] = useState([]);
   const [stats, setStats] = useState(null);
   const [generals, setGenerals] = useState([]);
@@ -147,7 +146,7 @@ const Reportes = () => {
           try {
             const carryoverResult = await reportService.checkAndCalculateCarryoverIfNeeded();
             if (carryoverResult.calculated) {
-              success(carryoverResult.message);
+              console.log('✅ Arrastre calculado automáticamente:', carryoverResult.message);
             } else if (carryoverResult.error) {
               console.warn('Error en verificación de arrastre:', carryoverResult.message);
             }
@@ -209,32 +208,6 @@ const Reportes = () => {
     } catch (err) {
       console.error("Error loading carryover transactions:", err);
       error("Error al cargar transacciones de arrastre");
-    }
-  };
-
-  const processMonthlyCarryover = async () => {
-    try {
-      setProcessingCarryover(true);
-      
-      const result = await reportService.checkAndCalculateCarryoverIfNeeded();
-      
-      if (result.calculated || result.alreadyCalculated) {
-        success(result.message);
-      } else if (result.error) {
-        error(result.message);
-      } else {
-        success(result.message || 'Proceso completado');
-      }
-      
-      // Recargar el reporte para reflejar los cambios
-      await generateReport();
-      await loadCarryoverInfo();
-      
-    } catch (err) {
-      console.error("Error processing carryover:", err);
-      error("Error al procesar el arrastre mensual");
-    } finally {
-      setProcessingCarryover(false);
     }
   };
 
@@ -650,39 +623,23 @@ const Reportes = () => {
                     <ChartBarIcon className="h-5 w-5 mr-2" />
                     Desglose de Balance
                   </h3>
-                  {/* Botón para calcular arrastre mensual */}
+                  {/* Estado del arrastre automático */}
                   <div className="flex items-center space-x-2">
                     {carryoverStatus.calculated && (
                       <span className="text-xs text-green-600 flex items-center">
                         <CheckCircleIcon className="h-4 w-4 mr-1" />
-                        Arrastre calculado
+                        Arrastre calculado automáticamente
                       </span>
                     )}
-                    {!carryoverStatus.calculated && carryoverStatus.hasPositiveBalance && (
+                    {!carryoverStatus.calculated && (
                       <span className="text-xs text-blue-600 flex items-center">
                         <ClockIcon className="h-4 w-4 mr-1" />
-                        Pendiente de calcular
+                        Se calculará automáticamente el 1° del mes
                       </span>
                     )}
-                    <Button
-                      onClick={processMonthlyCarryover}
-                      disabled={processingCarryover}
-                      variant={carryoverStatus.calculated ? "outline" : "primary"}
-                      size="sm"
-                      className={`inline-flex items-center ${
-                        carryoverStatus.calculated 
-                          ? 'border-green-500 text-green-600 hover:bg-green-50' 
-                          : 'border-blue-500 text-blue-600 hover:bg-blue-50'
-                      }`}
-                    >
-                      <ArrowPathIcon className={`h-4 w-4 mr-2 ${processingCarryover ? 'animate-spin' : ''}`} />
-                      {processingCarryover 
-                        ? 'Calculando...' 
-                        : carryoverStatus.calculated 
-                          ? 'Recalcular Arrastre'
-                          : 'Calcular Arrastre'
-                      }
-                    </Button>
+                    <span className="text-xs text-gray-500 italic">
+                      🤖 Cálculo automático cada 1° del mes a las 12:00 AM
+                    </span>
                   </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -794,12 +751,12 @@ const Reportes = () => {
                     </div>
                     {carryoverStatus.executed && (
                       <div className="mt-2 text-xs text-green-600">
-                        ✅ Este arrastre ya fue aplicado como transacción de ingreso en el sistema
+                        ✅ Este arrastre fue calculado automáticamente por el sistema
                       </div>
                     )}
                     {!carryoverStatus.executed && carryoverStatus.canExecute && (
                       <div className="mt-2 text-xs text-orange-600">
-                        ⏳ Haz clic en "Ejecutar Arrastre" para aplicar este saldo al mes actual
+                        ⏳ El sistema calculará automáticamente el arrastre el 1° del próximo mes
                       </div>
                     )}
                   </div>
