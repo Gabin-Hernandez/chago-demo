@@ -23,7 +23,7 @@ const COLORS = {
 /**
  * Helper function to add page header with Santiago FC branding
  */
-export const addPageHeader = async (doc, title = 'Reporte de Transacciones') => {
+export const addPageHeader = async (doc, title = 'Reporte Administrativo', totalTransactions = null) => {
     console.log('🎨 Generando header del PDF...');
     
     // Header background with gradient effect
@@ -56,7 +56,13 @@ export const addPageHeader = async (doc, title = 'Reporte de Transacciones') => 
     // Subtitle
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.text('Sistema de Administración Financiera', 105, 26, { align: 'center' });
+    if (totalTransactions) {
+        doc.text('Sistema de Administración Financiera', 105, 25, { align: 'center' });
+        doc.setFontSize(9);
+        doc.text(`Total de Transacciones: ${totalTransactions}`, 105, 30, { align: 'center' });
+    } else {
+        doc.text('Sistema de Administración Financiera', 105, 26, { align: 'center' });
+    }
 
     // Date and time info
     const now = new Date();
@@ -171,7 +177,7 @@ export const createEnhancedPDFReport = async (transactions, stats, filters, conc
     });
 
     // Start first page
-    await addPageHeader(doc);
+    await addPageHeader(doc, 'Reporte Administrativo', stats.totalTransactions);
 
     // Date range information
     let dateRange = 'Todas las fechas';
@@ -205,9 +211,9 @@ export const createEnhancedPDFReport = async (transactions, stats, filters, conc
     const cardHeight = 35;
     const cardSpacing = 4;
 
-    // Row 1: Main financial metrics
-    createInfoCard(doc, 15, currentY, cardWidth, cardHeight, 'Total Transacciones',
-        stats.totalTransactions.toString(), COLORS.text, `${stats.entradasCount + stats.salidasCount} operaciones`);
+    // Row 1: Main financial metrics (4 cards only)
+    createInfoCard(doc, 15, currentY, cardWidth, cardHeight, 'Arrastre de Ingresos',
+        `$${(stats.carryoverIncome || 0).toLocaleString('es-MX')}`, COLORS.success, 'Del mes anterior');
 
     createInfoCard(doc, 15 + cardWidth + cardSpacing, currentY, cardWidth, cardHeight, 'Total Ingresos',
         `$${stats.totalEntradas.toLocaleString('es-MX')}`, COLORS.success, `${stats.entradasCount} entradas`);
@@ -222,27 +228,23 @@ export const createEnhancedPDFReport = async (transactions, stats, filters, conc
 
     currentY += cardHeight + 10;
 
-    // Balance breakdown if applicable
-    if (stats.carryoverBalance !== 0 || stats.currentPeriodBalance !== 0) {
-        currentY = addSectionHeader(doc, 'Desglose de Balance', currentY);
+    // Desglose del Mes section
+    currentY = addSectionHeader(doc, 'Desglose del Mes', currentY);
 
-        createInfoCard(doc, 15, currentY, 58, cardHeight, 'Balance del Período',
-            `$${stats.currentPeriodBalance.toLocaleString('es-MX')}`,
-            stats.currentPeriodBalance >= 0 ? COLORS.success : COLORS.danger,
-            'Solo transacciones actuales');
+    createInfoCard(doc, 15, currentY, 58, cardHeight, 'Ingreso Total del Mes',
+        `$${stats.totalEntradas.toLocaleString('es-MX')}`, COLORS.success,
+        `${stats.entradasCount} transacciones`);
 
-        createInfoCard(doc, 78, currentY, 58, cardHeight, 'Balance Arrastrado',
-            `$${stats.carryoverBalance.toLocaleString('es-MX')}`,
-            stats.carryoverBalance >= 0 ? COLORS.success : COLORS.danger,
-            'Pendientes anteriores');
+    createInfoCard(doc, 78, currentY, 58, cardHeight, 'Gasto Total del Mes',
+        `$${stats.totalSalidas.toLocaleString('es-MX')}`, COLORS.danger,
+        `${stats.salidasCount} transacciones`);
 
-        createInfoCard(doc, 141, currentY, 54, cardHeight, 'Total Combinado',
-            `$${stats.totalBalance.toLocaleString('es-MX')}`,
-            stats.totalBalance >= 0 ? COLORS.success : COLORS.danger,
-            'Período + Arrastre');
+    createInfoCard(doc, 141, currentY, 54, cardHeight, 'Balance del Mes',
+        `$${(stats.totalEntradas - stats.totalSalidas).toLocaleString('es-MX')}`,
+        (stats.totalEntradas - stats.totalSalidas) >= 0 ? COLORS.success : COLORS.danger,
+        'Solo este período');
 
-        currentY += cardHeight + 10;
-    }
+    currentY += cardHeight + 10;
 
     // Payment status for expenses
     if (stats.salidasCount > 0) {
@@ -273,12 +275,71 @@ export const createEnhancedPDFReport = async (transactions, stats, filters, conc
         currentY += cardHeight + 15;
     }
 
+    // General breakdown - Move to appear first
+    if (Object.keys(stats.generalBreakdown).length > 0) {
+        // Check if we need a new page
+        if (currentY > 180) {
+            doc.addPage();
+            await addPageHeader(doc, 'Reporte Administrativo');
+            currentY = 50;
+        }
+
+        currentY = addSectionHeader(doc, 'Desglose por Generales', currentY);
+
+        const generalData = Object.entries(stats.generalBreakdown)
+            .sort(([, a], [, b]) => (b.salidas + b.entradas) - (a.salidas + a.entradas))
+            .map(([general, data]) => [
+                general,
+                `$${data.entradas.toLocaleString('es-MX')}`,
+                `$${data.salidas.toLocaleString('es-MX')}`,
+                `$${(data.entradas - data.salidas).toLocaleString('es-MX')}`,
+                data.count.toString()
+            ]);
+
+        autoTable(doc, {
+            startY: currentY,
+            head: [['Categoría General', 'Ingresos', 'Gastos', 'Balance', 'Transacciones']],
+            body: generalData,
+            theme: 'striped',
+            headStyles: {
+                fillColor: COLORS.primary,
+                textColor: COLORS.white,
+                fontStyle: 'bold',
+                halign: 'center',
+                fontSize: 10
+            },
+            bodyStyles: {
+                fontSize: 9,
+                textColor: COLORS.text
+            },
+            alternateRowStyles: {
+                fillColor: COLORS.lightGray
+            },
+            columnStyles: {
+                0: { fontStyle: 'bold', cellWidth: 60 },
+                1: { halign: 'right', textColor: COLORS.success, cellWidth: 30 },
+                2: { halign: 'right', textColor: COLORS.danger, cellWidth: 30 },
+                3: { halign: 'right', fontStyle: 'bold', cellWidth: 30 },
+                4: { halign: 'center', cellWidth: 30 }
+            },
+            margin: { left: 15, right: 15 },
+            styles: {
+                lineColor: [200, 200, 200],
+                lineWidth: 0.3
+            },
+            tableLineColor: [200, 200, 200],
+            tableLineWidth: 0.3
+        });
+
+        currentY = doc.lastAutoTable.finalY + 10;
+    }
+
     // Concept breakdown table
     if (Object.keys(stats.conceptBreakdown).length > 0) {
         // Check if we need a new page
         if (currentY > 200) {
             doc.addPage();
-            await addPageHeader(doc);
+            await addPageHeader(doc, 'Reporte Administrativo');
             currentY = 50;
         }
 
@@ -298,7 +359,7 @@ export const createEnhancedPDFReport = async (transactions, stats, filters, conc
             startY: currentY,
             head: [['Concepto', 'Ingresos', 'Gastos', 'Total', 'Cantidad']],
             body: conceptData,
-            theme: 'striped',
+            theme: 'grid',
             headStyles: {
                 fillColor: COLORS.primary,
                 textColor: COLORS.white,
@@ -323,7 +384,8 @@ export const createEnhancedPDFReport = async (transactions, stats, filters, conc
             margin: { left: 15, right: 15 },
             styles: {
                 lineColor: [220, 220, 220],
-                lineWidth: 0.1
+                lineWidth: 0.1,
+                halign: 'left'
             }
         });
 
@@ -335,7 +397,7 @@ export const createEnhancedPDFReport = async (transactions, stats, filters, conc
         // Check if we need a new page
         if (currentY > 220) {
             doc.addPage();
-            await addPageHeader(doc);
+            await addPageHeader(doc, 'Reporte Administrativo');
             currentY = 50;
         }
 
@@ -347,15 +409,14 @@ export const createEnhancedPDFReport = async (transactions, stats, filters, conc
                 provider,
                 `$${data.amount.toLocaleString('es-MX')}`,
                 `$${data.pendingAmount.toLocaleString('es-MX')}`,
-                data.count.toString(),
-                data.pendingAmount > 0 ? 'Pendiente' : 'Completo'
+                data.count.toString()
             ]);
 
         autoTable(doc, {
             startY: currentY,
-            head: [['Proveedor', 'Monto Total', 'Saldo Pendiente', 'Transacciones', 'Estado']],
+            head: [['Proveedor', 'Monto Total', 'Saldo Pendiente', 'Transacciones']],
             body: providerData,
-            theme: 'striped',
+            theme: 'grid',
             headStyles: {
                 fillColor: COLORS.primary,
                 textColor: COLORS.white,
@@ -371,13 +432,17 @@ export const createEnhancedPDFReport = async (transactions, stats, filters, conc
                 fillColor: COLORS.lightGray
             },
             columnStyles: {
-                0: { fontStyle: 'bold', cellWidth: 70 },
-                1: { halign: 'right', cellWidth: 35 },
-                2: { halign: 'right', textColor: COLORS.danger, cellWidth: 35 },
-                3: { halign: 'center', cellWidth: 25 },
-                4: { halign: 'center', cellWidth: 15 }
+                0: { fontStyle: 'bold', cellWidth: 80 },
+                1: { halign: 'right', cellWidth: 40 },
+                2: { halign: 'right', textColor: COLORS.danger, cellWidth: 40 },
+                3: { halign: 'center', cellWidth: 30 }
             },
-            margin: { left: 15, right: 15 }
+            margin: { left: 15, right: 15 },
+            styles: {
+                lineColor: [220, 220, 220],
+                lineWidth: 0.1,
+                halign: 'left'
+            }
         });
 
         currentY = doc.lastAutoTable.finalY + 10;
@@ -426,11 +491,7 @@ export const createEnhancedPDFReport = async (transactions, stats, filters, conc
             startY: currentY,
             head: [['Fecha', 'Tipo', 'Concepto', 'Proveedor', 'Monto', 'Estado']],
             body: transactionData,
-            theme: 'striped',
-            styles: {
-                fontSize: 8,
-                cellPadding: 2
-            },
+            theme: 'grid',
             headStyles: {
                 fillColor: COLORS.primary,
                 textColor: COLORS.white,
@@ -439,7 +500,8 @@ export const createEnhancedPDFReport = async (transactions, stats, filters, conc
                 fontSize: 9
             },
             bodyStyles: {
-                textColor: COLORS.text
+                textColor: COLORS.text,
+                fontSize: 8
             },
             alternateRowStyles: {
                 fillColor: COLORS.lightGray
@@ -452,7 +514,14 @@ export const createEnhancedPDFReport = async (transactions, stats, filters, conc
                 4: { halign: 'right', cellWidth: 30 },
                 5: { halign: 'center', cellWidth: 25 }
             },
-            margin: { left: 15, right: 15 }
+            margin: { left: 15, right: 15 },
+            styles: {
+                fontSize: 8,
+                cellPadding: 2,
+                lineColor: [220, 220, 220],
+                lineWidth: 0.1,
+                halign: 'left'
+            }
         });
 
         if (transactions.length > 100) {
