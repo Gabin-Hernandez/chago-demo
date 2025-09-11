@@ -24,6 +24,8 @@ const COLORS = {
  * Helper function to add page header with Santiago FC branding
  */
 export const addPageHeader = async (doc, title = 'Reporte de Transacciones') => {
+    console.log('🎨 Generando header del PDF...');
+    
     // Header background with gradient effect
     doc.setFillColor(...COLORS.primary);
     doc.rect(0, 0, 210, 40, 'F');
@@ -33,7 +35,17 @@ export const addPageHeader = async (doc, title = 'Reporte de Transacciones') => 
     doc.rect(0, 40, 210, 2, 'F');
 
     // Add Santiago FC logo
-    await addLogoToPDF(doc, 15, 8, 25, 25);
+    console.log('🖼️ Añadiendo logo al PDF...');
+    try {
+        const logoAdded = await addLogoToPDF(doc, 15, 8, 25, 25);
+        if (logoAdded) {
+            console.log('✅ Logo añadido exitosamente');
+        } else {
+            console.log('⚠️ Logo fallback aplicado');
+        }
+    } catch (error) {
+        console.error('❌ Error añadiendo logo:', error);
+    }
 
     // Main title with better typography
     doc.setFontSize(22);

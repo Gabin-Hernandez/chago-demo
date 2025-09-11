@@ -106,6 +106,7 @@ export const reportService = {
         totalTransactions: transactions.length,
         totalEntradas: 0,
         totalSalidas: 0,
+        totalPaid: 0, // Total pagado de todos los gastos
         totalBalance: 0,
         entradasCount: 0,
         salidasCount: 0,
@@ -262,6 +263,12 @@ export const reportService = {
             stats.carryoverBalance -= (transaction.balance || amount);
           }
           
+          // Calcular total pagado para todas las transacciones de salida
+          const totalPaid = transaction.totalPaid || 0;
+          stats.totalPaid += totalPaid;
+          
+          console.log(`💰 Procesando gasto - totalPaid: ${totalPaid}, stats.totalPaid acumulado: ${stats.totalPaid}`);
+          
           // Payment status (only for salidas)
           const status = transaction.status || 'pendiente';
           if (stats.paymentStatus[status]) {
@@ -360,8 +367,10 @@ export const reportService = {
       stats.averageSalida = stats.salidasCount > 0 ? stats.totalSalidas / stats.salidasCount : 0;
 
       // Log final de estadísticas
-      console.log('📊 Estadísticas finales:', {
+      console.log('📊 Stats finales:', {
         totalEntradas: stats.totalEntradas,
+        totalSalidas: stats.totalSalidas,
+        totalPaid: stats.totalPaid,
         carryoverIncome: stats.carryoverIncome,
         currentPeriodBalance: stats.currentPeriodBalance,
         carryoverBalance: stats.carryoverBalance,
@@ -378,6 +387,24 @@ export const reportService = {
   // Export to Excel
   async exportToExcel(transactions, stats, filters) {
     try {
+      // Validar que stats tenga todas las propiedades necesarias
+      if (!stats) {
+        throw new Error('Stats object is undefined');
+      }
+      
+      // Asegurar que todas las propiedades necesarias estén definidas
+      stats.totalPaid = stats.totalPaid || 0;
+      stats.totalEntradas = stats.totalEntradas || 0;
+      stats.totalSalidas = stats.totalSalidas || 0;
+      stats.totalBalance = stats.totalBalance || 0;
+      
+      console.log('📊 Validando stats en exportToExcel:', {
+        totalPaid: stats.totalPaid,
+        totalEntradas: stats.totalEntradas,
+        totalSalidas: stats.totalSalidas,
+        totalBalance: stats.totalBalance
+      });
+
       const workbook = XLSX.utils.book_new();
 
       // Get reference data for lookups
@@ -408,19 +435,40 @@ export const reportService = {
         generalMap[general.id] = general.name;
       });
 
-      // Transactions sheet - sin ID, descripción, estado, total pagado y monto individual
-      // Ordenado por generales en lugar de fecha
+      // Transactions sheet - con columnas separadas y ordenadas correctamente
       const transactionsData = transactions
-        .map(transaction => ({
-          'Fecha': new Date(transaction.date?.toDate ? transaction.date.toDate() : transaction.date)
-            .toLocaleDateString('es-ES'),
-          'Tipo': transaction.type,
-          'General': generalMap[transaction.generalId] || 'Sin categoría general',
-          'Concepto': conceptMap[transaction.conceptId] || 'Sin concepto',
-          'Proveedor': providerMap[transaction.providerId] || 'N/A',
-          'Importe': transaction.amount
-        }))
-        .sort((a, b) => a.General.localeCompare(b.General)); // Ordenar por General
+        .map(transaction => {
+          const isIncome = transaction.type === 'entrada';
+          const totalPaid = transaction.totalPaid || 0;
+          const balance = transaction.balance || (transaction.type === 'salida' ? transaction.amount - totalPaid : 0);
+          
+          return {
+            'Fecha': new Date(transaction.date?.toDate ? transaction.date.toDate() : transaction.date)
+              .toLocaleDateString('es-ES'),
+            'Tipo': transaction.type === 'entrada' ? 'Entrada' : 'Salida',
+            'General': generalMap[transaction.generalId] || 'Sin categoría general',
+            'Concepto': conceptMap[transaction.conceptId] || 'Sin concepto',
+            'Proveedor': providerMap[transaction.providerId] || 'N/A',
+            'Ingreso': isIncome ? transaction.amount : '',
+            'Gasto': !isIncome ? transaction.amount : '',
+            'Total Pagado': !isIncome ? totalPaid : '',
+            'Saldo': !isIncome ? balance : '',
+            '_sortOrder': isIncome ? 0 : 1 // Para ordenar entradas primero
+          };
+        })
+        .sort((a, b) => {
+          // Primero por tipo (entradas primero)
+          if (a._sortOrder !== b._sortOrder) {
+            return a._sortOrder - b._sortOrder;
+          }
+          // Luego por General
+          return a.General.localeCompare(b.General);
+        })
+        .map(transaction => {
+          // Remover el campo auxiliar de ordenamiento
+          const { _sortOrder, ...cleanTransaction } = transaction;
+          return cleanTransaction;
+        });
 
       // Agregar filas de totales al final
       transactionsData.push(
@@ -431,7 +479,10 @@ export const reportService = {
           'General': '',
           'Concepto': '',
           'Proveedor': 'TOTALES:',
-          'Importe': ''
+          'Ingreso': '',
+          'Gasto': '',
+          'Total Pagado': '',
+          'Saldo': ''
         },
         {
           'Fecha': '',
@@ -439,15 +490,21 @@ export const reportService = {
           'General': '',
           'Concepto': '',
           'Proveedor': 'Total Ingresos:',
-          'Importe': stats.totalEntradas.toLocaleString('es-MX')
+          'Ingreso': '',
+          'Gasto': '',
+          'Total Pagado': '',
+          'Saldo': stats.totalEntradas.toLocaleString('es-MX')
         },
         {
           'Fecha': '',
           'Tipo': '',
           'General': '',
           'Concepto': '',
-          'Proveedor': 'Total Salidas:',
-          'Importe': Math.abs(stats.totalSalidas).toLocaleString('es-MX')
+          'Proveedor': 'Total Gastos:',
+          'Ingreso': '',
+          'Gasto': '',
+          'Total Pagado': '',
+          'Saldo': Math.abs(stats.totalSalidas).toLocaleString('es-MX')
         },
         {
           'Fecha': '',
@@ -455,7 +512,10 @@ export const reportService = {
           'General': '',
           'Concepto': '',
           'Proveedor': 'Balance Final:',
-          'Importe': (stats.totalBalance >= 0 ? '+' : '') + stats.totalBalance.toLocaleString('es-MX')
+          'Ingreso': '',
+          'Gasto': '',
+          'Total Pagado': '',
+          'Saldo': (stats.totalBalance >= 0 ? '+' : '') + stats.totalBalance.toLocaleString('es-MX')
         }
       );
 

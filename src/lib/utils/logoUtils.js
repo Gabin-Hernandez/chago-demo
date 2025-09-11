@@ -53,8 +53,33 @@ export const imageToBase64 = (imageUrl) => {
  */
 export const addLogoToPDF = async (doc, x = 15, y = 8, width = 25, height = 25) => {
   try {
-    const logoUrl = 'http://localhost:3000/logo.webp';
-    const base64Logo = await imageToBase64(logoUrl);
+    // Try multiple logo paths
+    const logoUrls = [
+      `${window.location.origin}/logo.webp`,
+      '/logo.webp',
+      './logo.webp',
+      `${window.location.origin}/logo.png`,
+      '/logo.png'
+    ];
+    
+    let base64Logo = null;
+    let logoLoaded = false;
+    
+    for (const logoUrl of logoUrls) {
+      try {
+        base64Logo = await imageToBase64(logoUrl);
+        logoLoaded = true;
+        console.log(`✅ Logo cargado exitosamente desde: ${logoUrl}`);
+        break;
+      } catch (error) {
+        console.log(`❌ No se pudo cargar logo desde: ${logoUrl}`);
+        continue;
+      }
+    }
+    
+    if (!logoLoaded) {
+      throw new Error('No se pudo cargar el logo desde ninguna ubicación');
+    }
     
     // Create a white background circle/rectangle for the logo to remove black background
     doc.setFillColor(255, 255, 255);
@@ -63,9 +88,11 @@ export const addLogoToPDF = async (doc, x = 15, y = 8, width = 25, height = 25) 
     // Add the logo image to PDF with transparent background handling
     doc.addImage(base64Logo, 'PNG', x + 2, y + 2, width - 4, height - 4);
     
+    console.log('✅ Logo añadido exitosamente al PDF');
     return true;
   } catch (error) {
-    console.error('Error adding logo to PDF:', error);
+    console.error('❌ Error adding logo to PDF:', error);
+    console.log('🔄 Usando fallback de texto estilizado...');
     
     // Fallback: Create a styled text logo
     doc.setFillColor(255, 255, 255);
@@ -75,6 +102,7 @@ export const addLogoToPDF = async (doc, x = 15, y = 8, width = 25, height = 25) 
     doc.setFont('helvetica', 'bold');
     doc.text('SFC', x + width/2, y + height/2 + 2, { align: 'center' });
     
+    console.log('⚠️ Logo fallback aplicado (texto SFC)');
     return false;
   }
 };
