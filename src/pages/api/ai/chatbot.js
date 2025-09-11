@@ -2,6 +2,10 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { transactionService } from "../../../lib/services/transactionService";
 import { conceptService } from "../../../lib/services/conceptService";
 import { providerService } from "../../../lib/services/providerService";
+import { generalService } from "../../../lib/services/generalService";
+import { subconceptService } from "../../../lib/services/subconceptService";
+import { enhanceQuery, analyzeQueryType, determineVisualizationComponents, prepareDataForQuery } from "../../../lib/utils/queryEnhancer";
+import { DIVISIONS } from "../../../lib/constants/divisions";
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY);
 
@@ -111,24 +115,47 @@ export default async function handler(req, res) {
     
     console.log(`Consulta: "${question.substring(0, 50)}..." - Límite aplicado: ${transactionLimit || 'Sin límite'}`);
 
-    // Obtener datos financieros con límite dinámico
-    const [transactions, concepts, providers] = await Promise.all([
+    // Mejorar la consulta con el analizador
+    const enhancedQuestion = enhanceQuery(question);
+    const queryAnalysis = analyzeQueryType(enhancedQuestion);
+    
+    console.log('Query analysis:', queryAnalysis);
+
+    // Obtener todos los datos del sistema para el análisis completo
+    const [transactions, concepts, providers, generals, subconcepts] = await Promise.all([
       transactionService.getAll({ limit: transactionLimit }),
       conceptService.getAll(),
       providerService.getAll(),
+      generalService.getAll(),
+      subconceptService.getAll()
     ]);
+
+    // Agregar información de divisiones (datos estáticos)
+    const divisions = DIVISIONS;
 
     // Preparar datos para el análisis
     const financialData = prepareFinancialData(transactions, concepts, providers);
+    
+    // Preparar datos específicos según la consulta
+    const querySpecificData = prepareDataForQuery(transactions, concepts, providers, generals, subconcepts, divisions, queryAnalysis);
+    
+    // Determinar componentes de visualización
+    const visualizationComponents = determineVisualizationComponents(queryAnalysis, querySpecificData);
 
     // Análisis inteligente de la pregunta para determinar filtros
-    const questionAnalysis = analyzeQuestion(question);
+    const questionAnalysis = analyzeQuestion(enhancedQuestion);
     
     // Filtrar datos según el análisis de la pregunta
     const filteredData = filterDataByQuestion(financialData, questionAnalysis);
 
-    // Generar respuesta con IA
-    const response = await generateChatbotResponse(question, filteredData, questionAnalysis);
+    // Generar respuesta con IA usando la consulta mejorada
+    const response = await generateChatbotResponse(enhancedQuestion, filteredData, questionAnalysis, querySpecificData, visualizationComponents, {
+      generals,
+      concepts,
+      subconcepts,
+      providers,
+      divisions
+    });
 
     // Añadir información sobre el alcance del análisis
     const analysisScope = getAnalysisScope(transactionLimit, transactions.length);
@@ -714,7 +741,7 @@ function cleanAndConsolidateData(filteredData) {
   };
 }
 
-async function generateChatbotResponse(question, filteredData, questionAnalysis) {
+async function generateChatbotResponse(question, filteredData, questionAnalysis, querySpecificData = null, visualizationComponents = null, systemData = null) {
   const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
   // Limpiar datos antes de enviar a la IA
@@ -742,6 +769,37 @@ Eres un asistente financiero experto. Analiza esta pregunta específica: "${ques
 DATOS FINANCIEROS FILTRADOS PARA ESTA CONSULTA (${timeFrameText[cleanedData.periodo] || 'período solicitado'}):
 ${JSON.stringify(cleanedData, null, 2)}
 
+${querySpecificData ? `
+DATOS ESPECÍFICOS PARA ESTA CONSULTA:
+- Análisis por categorías generales: ${JSON.stringify(querySpecificData.chartData, null, 2)}
+- Métricas específicas: ${JSON.stringify(querySpecificData.metrics, null, 2)}
+- Datos de tabla: ${JSON.stringify(querySpecificData.tableData, null, 2)}
+- Información del sistema: ${JSON.stringify(querySpecificData.systemInfo, null, 2)}
+
+DATOS COMPLETOS DEL SISTEMA DISPONIBLES:
+- Categorías Generales (${systemData?.generals?.length || 0}): ${systemData?.generals?.map(g => `${g.name} (${g.type})`).join(', ') || 'No disponible'}
+- Conceptos (${systemData?.concepts?.length || 0}): ${systemData?.concepts?.map(c => c.name).join(', ') || 'No disponible'}
+- Subconceptos (${systemData?.subconcepts?.length || 0}): ${systemData?.subconcepts?.map(s => s.name).join(', ') || 'No disponible'}
+- Proveedores (${systemData?.providers?.length || 0}): ${systemData?.providers?.map(p => p.name).join(', ') || 'No disponible'}
+- Divisiones disponibles: ${systemData?.divisions?.map(d => d.label).join(', ') || 'No disponible'}
+
+CONTEXTO ADICIONAL:
+- Las categorías generales agrupan los conceptos por tipo (ej: "Jornada 1", "Jornada 2", etc.)
+- Los términos "J1", "J2", "J3" se refieren a "Jornada 1", "Jornada 2", "Jornada 3" respectivamente
+- Cuando se mencionen "generales" se refiere a las categorías generales del sistema
+- Los subconceptos son subcategorías dentro de cada concepto principal
+- Las divisiones incluyen: General, 2nda división profesional, y 3ra división profesional
+- Si se pregunta por "conceptos del mes" muestra el desglose por conceptos individuales
+- Si se pregunta por "generales del mes" muestra el desglose por categorías generales
+- Si se pregunta por "subconceptos del mes" muestra el desglose por subconceptos
+- Si se pregunta por "divisiones del mes" muestra el desglose por divisiones
+` : ''}
+
+${visualizationComponents ? `
+COMPONENTES DE VISUALIZACIÓN SUGERIDOS:
+${visualizationComponents.map(comp => `- ${comp.type}: ${comp.title} (prioridad: ${comp.priority})`).join('\n')}
+` : ''}
+
 IMPORTANTE: 
 - Solo analiza y responde sobre los datos filtrados que corresponden EXACTAMENTE a la pregunta
 - Los datos ya están filtrados para el período correcto solicitado
@@ -752,13 +810,20 @@ IMPORTANTE:
 - IMPORTANTE: Agrupa correctamente por concepto - si hay múltiples transacciones del mismo concepto, súmalas en UNA SOLA categoría
 - NO duplicar conceptos en la respuesta ni en los datos de gráficas
 - Usa EXACTAMENTE los nombres de conceptos que aparecen en gastosPorConcepto para evitar duplicados
+- Si la pregunta menciona "generales" o "categorías", usa los datos de categorías generales
+- Si la pregunta menciona "conceptos", usa los datos de conceptos individuales
+- Si la pregunta menciona "subconceptos", usa los datos de subconceptos
+- Si la pregunta menciona "divisiones" o "división", usa los datos de divisiones
+- Si la pregunta menciona "proveedores", usa los datos de proveedores
 
 INSTRUCCIONES PARA GRÁFICAS:
 ${questionAnalysis.chartType ? `- Tipo de gráfica sugerida: ${questionAnalysis.chartType}` : '- Propón el tipo de gráfica más relevante'}
-- Para distribución por categorías: usa "pie" 
+- Para distribución por categorías: usa "bar" (NUNCA uses "pie")
 - Para comparaciones de montos: usa "bar"
 - Para tendencias temporales: usa "line"
+- IMPORTANTE: NUNCA uses gráficos de tipo "pie" - siempre usa "bar" para distribuciones
 - Para gráficas de distribución por conceptos, usa EXACTAMENTE los datos de gastosPorConcepto (ya están agrupados correctamente)
+- Para gráficas de categorías generales, usa los datos específicos de querySpecificData.chartData
 
 Responde en formato JSON con esta estructura exacta:
 {
@@ -776,7 +841,7 @@ Responde en formato JSON con esta estructura exacta:
       }
     ],
     "chartData": {
-      "type": "pie|bar|line",
+      "type": "bar",
       "data": [
         {
           "label": "etiqueta",

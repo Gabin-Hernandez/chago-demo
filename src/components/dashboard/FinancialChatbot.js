@@ -3,6 +3,10 @@ import { Card, CardContent } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Loader2, Send, Bot, MessageCircle, X, TrendingUp, PieChart, BarChart3, DollarSign, Sparkles } from 'lucide-react';
 import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LineChart, Line } from 'recharts';
+import ReusableDataTable from '../chatbot/ReusableDataTable';
+import ReusableChart from '../chatbot/ReusableChart';
+import ReusableMetricsList from '../chatbot/ReusableMetricsList';
+import ReusableTextSection from '../chatbot/ReusableTextSection';
 
 const FinancialChatbot = () => {
   const [inputMessage, setInputMessage] = useState("");
@@ -88,6 +92,11 @@ const FinancialChatbot = () => {
   const suggestedQuestions = [
     "¿Cuánto gasté en los últimos 2 meses?", // Consulta mensual - 500 transacciones
     "¿Cuáles son mis mayores gastos este mes?", // Consulta mensual - 500 transacciones
+    "Me puedes dar los generales del mes", // Nueva consulta específica
+    "Me puedes dar los conceptos del mes", // Nueva consulta específica  
+    "¿Cuánto gasté en J2 este mes?", // Consulta específica de jornada
+    "¿Cuáles son los subconceptos del mes?", // Nueva consulta de subconceptos
+    "¿Cómo se distribuyen los gastos por división?", // Nueva consulta de divisiones
     "¿Cómo está mi balance actual?", // Consulta rápida - 100 transacciones
     "¿Cuál es mi tendencia de gastos histórica?", // Consulta histórica - 5000 transacciones
     "¿En qué concepto gasto más dinero este año?", // Consulta anual - 3000 transacciones
@@ -541,7 +550,8 @@ const FinancialChatbot = () => {
     if (!data) return null;
 
     return (
-      <div className="space-y-8">
+      <div className="space-y-6">
+        {/* Header */}
         <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg p-6 text-white">
           <div className="flex items-center space-x-3">
             <Sparkles className="h-6 w-6" />
@@ -552,46 +562,111 @@ const FinancialChatbot = () => {
           </div>
         </div>
 
-        {data.metrics && (
-          <div className="space-y-4">
-            <h3 className="text-2xl font-bold text-gray-900 flex items-center">
-              <TrendingUp className="h-6 w-6 mr-3 text-green-600" />
-              Métricas Principales
-            </h3>
-            {renderMetricCards(data.metrics)}
-          </div>
+        {/* Respuesta en texto */}
+        {responseText && (
+          <ReusableTextSection
+            title="Resumen del Análisis"
+            content={responseText}
+            type="info"
+          />
         )}
 
+        {/* Métricas principales */}
+        {data.metrics && (
+          <ReusableMetricsList
+            title="Métricas Principales"
+            metrics={Array.isArray(data.metrics) ? data.metrics : [
+              ...(data.metrics.totalIngresos !== undefined ? [{
+                label: 'Total de Ingresos',
+                value: data.metrics.totalIngresos,
+                type: 'income'
+              }] : []),
+              ...(data.metrics.totalGastos !== undefined ? [{
+                label: 'Total de Gastos',
+                value: data.metrics.totalGastos,
+                type: 'expense'
+              }] : []),
+              ...(data.metrics.balance !== undefined ? [{
+                label: 'Balance',
+                value: data.metrics.balance,
+                type: 'balance'
+              }] : []),
+              ...(data.metrics.numeroTransacciones !== undefined ? [{
+                label: 'Total de Transacciones',
+                value: data.metrics.numeroTransacciones,
+                type: 'count'
+              }] : []),
+              // Agregar otras métricas dinámicamente
+              ...Object.entries(data.metrics).filter(([key]) => 
+                !['totalIngresos', 'totalGastos', 'balance', 'numeroTransacciones'].includes(key)
+              ).map(([key, value]) => ({
+                label: key.charAt(0).toUpperCase() + key.slice(1),
+                value: value,
+                type: typeof value === 'number' && value > 1000 ? 'currency' : 'number'
+              }))
+            ]}
+            layout="grid"
+          />
+        )}
+
+        {/* Gráfico principal */}
+        {data.chartData && (
+          <ReusableChart
+            type={data.chartData.type || 'bar'}
+            title="Distribución Visual"
+            data={data.chartData.data.map(item => ({
+              name: item.label || item.name,
+              value: item.value,
+              percentage: item.percentage
+            }))}
+            height={400}
+          />
+        )}
+
+        {/* Distribución detallada en tabla */}
         {data.percentages && (
-          <div className="space-y-4">
-            <h3 className="text-2xl font-bold text-gray-900 flex items-center">
-              <PieChart className="h-6 w-6 mr-3 text-blue-600" />
-              Distribución Detallada
-            </h3>
-            <Card>
-              <CardContent className="p-6">
-                {/* Gráficas en 2 columnas */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                  <div>
-                    <h4 className="text-lg font-semibold mb-4 text-center">Gráfico de Distribución</h4>
-                    {renderPieChart(data.percentages)}
-                  </div>
-                  <div>
-                    <h4 className="text-lg font-semibold mb-4">Desglose Detallado</h4>
-                    {renderPercentageBreakdown(data.percentages)}
-                  </div>
-                </div>
-                
-                {/* Tabla de transacciones - ancho completo */}
-                {data.transactions && (
-                  <div className="border-t border-gray-200 pt-8">
-                    <h4 className="text-lg font-semibold mb-4">Transacciones Detalladas</h4>
-                    {renderTransactionsTable(data.transactions)}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+          <ReusableDataTable
+            title="Distribución Detallada"
+            data={data.percentages.map(item => ({
+              categoria: item.label,
+              amount: item.value,
+              percentage: item.percentage
+            }))}
+            columns={[
+              { key: 'categoria', title: 'Categoría' },
+              { key: 'amount', title: 'Monto', type: 'currency', align: 'right' },
+              { key: 'percentage', title: 'Porcentaje', type: 'percentage', align: 'right' }
+            ]}
+            showTotal={true}
+            totalLabel="Total"
+          />
+        )}
+
+        {/* Transacciones detalladas */}
+        {data.transactions && (
+          <ReusableDataTable
+            title="Transacciones Detalladas"
+            data={data.transactions.slice(0, 10)} // Limitar a 10 para mejor rendimiento
+            columns={[
+              { key: 'dateString', title: 'Fecha' },
+              { key: 'type', title: 'Tipo', format: (value) => value === 'entrada' ? 'Ingreso' : 'Gasto' },
+              { key: 'concept', title: 'Concepto' },
+              { key: 'description', title: 'Descripción' },
+              { key: 'amount', title: 'Monto', type: 'currency', align: 'right' },
+              { key: 'status', title: 'Estado', type: 'status' }
+            ]}
+            maxHeight="400px"
+          />
+        )}
+
+        {/* Información adicional */}
+        {data.transactions && data.transactions.length > 10 && (
+          <ReusableTextSection
+            title=""
+            content={`Se muestran las primeras 10 transacciones de un total de ${data.transactions.length}. Para ver todas las transacciones, utiliza la sección de historial completo.`}
+            type="info"
+            showIcon={true}
+          />
         )}
       </div>
     );
