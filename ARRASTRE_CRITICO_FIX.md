@@ -8,7 +8,7 @@
 3. **Gasto inicial de agosto**: No aparece en el arrastre de septiembrea
 
 ### Impacto:aa
-- **Los pendientes de meses anteriores NO se incluyen en el arrastre**
+- **Los pendientes de meses anteriores NO se incluyen en el arrastre**a
 - **Las estadísticas están incorrectas**a
 - **Afectará el uso de reportes los siguientes meses**
 
