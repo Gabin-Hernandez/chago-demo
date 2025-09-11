@@ -300,7 +300,7 @@ export const createEnhancedPDFReport = async (transactions, stats, filters, conc
             startY: currentY,
             head: [['Categoría General', 'Ingresos', 'Gastos', 'Balance', 'Transacciones']],
             body: generalData,
-            theme: 'striped',
+            theme: 'grid',
             headStyles: {
                 fillColor: COLORS.primary,
                 textColor: COLORS.white,
@@ -324,11 +324,10 @@ export const createEnhancedPDFReport = async (transactions, stats, filters, conc
             },
             margin: { left: 15, right: 15 },
             styles: {
-                lineColor: [200, 200, 200],
-                lineWidth: 0.3
-            },
-            tableLineColor: [200, 200, 200],
-            tableLineWidth: 0.3
+                lineColor: [220, 220, 220],
+                lineWidth: 0.1,
+                halign: 'left'
+            }
         });
 
         currentY = doc.lastAutoTable.finalY + 10;
