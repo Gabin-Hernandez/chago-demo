@@ -1,8 +1,9 @@
 import { recurringExpenseService } from "../../../lib/services/recurringExpenseService";
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Method not allowed' });
+  // Vercel cron jobs send GET requests, but we also support POST for manual testing
+  if (req.method !== 'GET' && req.method !== 'POST') {
+    return res.status(405).json({ message: 'Method not allowed. Use GET or POST.' });
   }
 
   try {
