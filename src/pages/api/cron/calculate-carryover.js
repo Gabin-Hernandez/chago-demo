@@ -33,18 +33,11 @@ export default async function handler(req, res) {
     if (existingCarryover) {
       console.log(`[CRON] Carryover already calculated for ${currentMonth}/${currentYear}:`, existingCarryover.saldoArrastre);
       
-      // Verificar si también existe la transacción de ingreso
-      let transactionExists = false;
-      if (existingCarryover.saldoArrastre > 0) {
-        transactionExists = await carryoverService.carryoverTransactionExists(currentYear, currentMonth);
-      }
-      
       return res.status(200).json({
         success: true,
         message: `Carryover already calculated for ${currentMonth}/${currentYear}${existingCarryover.saldoArrastre > 0 ? ` (${existingCarryover.saldoArrastre.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })})` : ' (no balance to carry)'}`,
         carryoverData: existingCarryover,
         alreadyExists: true,
-        transactionExists: transactionExists,
         date: today.toISOString()
       });
     }
@@ -52,50 +45,21 @@ export default async function handler(req, res) {
     // Calcular el arrastre del mes anterior al actual
     const carryoverData = await carryoverService.calculateAndSaveCarryover(currentYear, currentMonth);
 
-    // Si hay saldo positivo, crear la transacción de ingreso (igual que el sistema manual)
-    let carryoverTransaction = null;
-    if (carryoverData.saldoArrastre > 0) {
-      try {
-        // Crear usuario del sistema para la transacción
-        const systemUser = {
-          uid: 'system-cron',
-          email: 'system@cron-carryover.com'
-        };
-
-        carryoverTransaction = await carryoverService.createCarryoverIncomeTransaction(
-          carryoverData.saldoArrastre, 
-          carryoverData.previousYear,
-          carryoverData.previousMonth,
-          systemUser
-        );
-
-        console.log(`[CRON] Created carryover income transaction: ${carryoverData.saldoArrastre}`);
-      } catch (transactionError) {
-        console.warn(`[CRON] Error creating carryover transaction:`, transactionError);
-        // Si la transacción ya existe, no es un error crítico
-        if (!transactionError.message.includes('Ya existe una transacción de arrastre')) {
-          throw transactionError;
-        }
-      }
-    }
-
     // Log the calculation for monitoring
     console.log(`[CRON] Calculated carryover for ${currentMonth}/${currentYear}:`, {
       saldoArrastre: carryoverData.saldoArrastre,
       previousMonth: carryoverData.previousMonth,
       previousYear: carryoverData.previousYear,
       totalIngresos: carryoverData.totalIngresos,
-      totalGastosPagados: carryoverData.totalGastosPagados,
-      transactionCreated: !!carryoverTransaction
+      totalGastosPagados: carryoverData.totalGastosPagados
     });
 
     res.status(200).json({
       success: true,
       message: carryoverData.saldoArrastre > 0 
-        ? `Carryover calculated and applied for ${currentMonth}/${currentYear}: ${carryoverData.saldoArrastre.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}`
+        ? `Carryover calculated for ${currentMonth}/${currentYear}: ${carryoverData.saldoArrastre.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}`
         : `Carryover calculated for ${currentMonth}/${currentYear}: No positive balance to carry over`,
       carryoverData: carryoverData,
-      carryoverTransaction: carryoverTransaction,
       calculated: true,
       date: today.toISOString(),
       summary: {
@@ -105,9 +69,7 @@ export default async function handler(req, res) {
         fromMonth: carryoverData.previousMonth,
         fromYear: carryoverData.previousYear,
         totalIncome: carryoverData.totalIngresos,
-        totalPaidExpenses: carryoverData.totalGastosPagados,
-        transactionCreated: !!carryoverTransaction,
-        transactionId: carryoverTransaction?.id || null
+        totalPaidExpenses: carryoverData.totalGastosPagados
       }
     });
 
