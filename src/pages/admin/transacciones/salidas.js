@@ -15,7 +15,8 @@ import {
   ArrowTrendingDownIcon,
   PencilIcon,
   ClipboardIcon,
-  EyeIcon
+  EyeIcon,
+  ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 
 const SolicitudesPago = () => {
@@ -585,17 +586,13 @@ const SolicitudesPago = () => {
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
                                 {transaction.isRecurring ? (
-                                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
-                                    <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                    </svg>
+                                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-rose-400 text-white order border-blue-200">
+                                    <ArrowPathIcon className="h-4 w-4 mr-1" />
                                     Recurrente
                                   </span>
                                 ) : getInitialExpenseBadge(transaction) || (
                                   <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                    <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                    </svg>
+                                    <PlusIcon className="h-4 w-4 mr-1" />
                                     Manual
                                   </span>
                                 )}

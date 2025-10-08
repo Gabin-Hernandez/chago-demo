@@ -25,10 +25,12 @@ import {
   ChevronLeft,
   ChevronRight,
   RotateCcw,
-  Eye,
   BarChart3,
   StickyNote,
 } from "lucide-react";
+import { 
+  EyeIcon,
+} from '@heroicons/react/24/outline';
 
 const LogsPage = () => {
   const router = useRouter();
@@ -580,7 +582,7 @@ const LogsPage = () => {
               <button
                 onClick={applyFilters}
                 disabled={loading}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
               >
                 <Search className="h-4 w-4 mr-1" /> Aplicar Filtros
               </button>
@@ -726,11 +728,10 @@ const LogsPage = () => {
                           (log.entityType === "user" && log.action === "update")) && (
                           <button
                             onClick={() => handleViewDetails(log)}
-                            className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded transition-colors"
+                            className="bg-orange-100 hover:bg-orange-200 text-orange-600 hover:text-orange-800 py-1.5 px-2.5 rounded-md transition-colors flex items-center"
                             title={`Ver detalles de ${log.action === 'update' ? 'la actualización' : 'la eliminación'}`}
                           >
-                            <Eye className="w-3 h-3 mr-1" />
-                            Ver detalles
+                            <EyeIcon className="w-4 h-4" />
                           </button>
                         )}
                       </td>
@@ -861,7 +862,7 @@ const LogsPage = () => {
                     <div className="space-y-2">
                       <div>
                         <span className="text-xs text-gray-500">ID de {selectedLog.entityType === 'transaction' ? 'Transacción' : selectedLog.entityType === 'user' ? 'Usuario' : 'Entidad'}:</span>
-                        <p className="text-sm font-medium font-mono text-xs bg-gray-100 px-2 py-1 rounded inline-block">
+                        <p className="text-sm font-medium font-mono bg-gray-100 px-2 py-1 rounded inline-block">
                           {selectedLog.entityId}
                         </p>
                       </div>

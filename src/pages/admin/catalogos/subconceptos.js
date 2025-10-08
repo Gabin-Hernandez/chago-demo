@@ -2,10 +2,15 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import AdminLayout from "../../../components/layout/AdminLayout";
 import SubconceptModal from "../../../components/forms/SubconceptModal";
-import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { subconceptService } from "../../../lib/services/subconceptService";
 import { conceptService } from "../../../lib/services/conceptService";
 import { useAuth } from "../..//..//context/AuthContext";
+import { 
+  PencilIcon,
+  TrashIcon,
+  ArrowUpOnSquareIcon,
+  PlusIcon,
+} from '@heroicons/react/24/outline';
 
 export default function SubconceptosPage() {
   const { user, userRole, loading: authLoading } = useAuth();
@@ -124,19 +129,7 @@ export default function SubconceptosPage() {
               onClick={handleCreateSubconcept}
               className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
             >
-              <svg
-                className="-ml-1 mr-2 h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                />
-              </svg>
+               <PlusIcon className="h-5 w-5 mr-1.5" />
               Nuevo Subconcepto
             </button>
           </div>
@@ -300,16 +293,18 @@ export default function SubconceptosPage() {
                             <div className="flex items-center justify-end space-x-2">
                               <button
                                 onClick={() => handleEditSubconcept(subconcept)}
-                                className="text-primary hover:text-blue-900 p-1"
-                                title="Editar"
+                                className="bg-orange-100 hover:bg-orange-200 text-orange-600 hover:text-orange-800 py-1.5 px-2.5 rounded-md transition-colors flex items-center"
+                                title="Editar subconcepto"
+                                cursor="pointer"
                               >
                                 <PencilIcon className="h-4 w-4" />
                               </button>
                               {userRole !== 'contador' && userRole !== 'director_general' && (
                                 <button
                                   onClick={() => handleDeleteSubconcept(subconcept)}
-                                  className="text-red-600 hover:text-red-900 p-1"
-                                  title="Eliminar"
+                                  className="bg-orange-100 hover:bg-orange-200 text-orange-600 hover:text-orange-800 py-1.5 px-2.5 rounded-md transition-colors flex items-center"
+                                  title="Eliminar subconcepto"
+                                  cursor="pointer"
                                 >
                                   <TrashIcon className="h-4 w-4" />
                                 </button>

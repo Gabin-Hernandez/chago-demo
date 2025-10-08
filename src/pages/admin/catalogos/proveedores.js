@@ -10,7 +10,8 @@ import {
   MagnifyingGlassIcon,
   PencilIcon,
   TrashIcon,
-  EyeIcon
+  EyeIcon,
+  ArrowUpOnSquareIcon
 } from '@heroicons/react/24/outline';
 
 const Proveedores = () => {
@@ -164,26 +165,14 @@ const Proveedores = () => {
                 onClick={() => setIsCsvModalOpen(true)}
                 className="inline-flex items-center px-4 py-2 border border-orange-300 rounded-md shadow-sm text-sm font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
               >
-                <svg
-                  className="-ml-1 mr-2 h-5 w-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"
-                  />
-                </svg>
+                <ArrowUpOnSquareIcon className="h-5 w-5 mr-1.5" />
                 Importar CSV
               </button>
               <button
                 onClick={handleCreateProvider}
                 className="inline-flex items-center px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
               >
-                <PlusIcon className="h-4 w-4 mr-2" />
+                <PlusIcon className="h-4 w-4 mr-1.5" />
                 Nuevo Proveedor
               </button>
             </div>
@@ -273,15 +262,17 @@ const Proveedores = () => {
                             setSelectedProvider(provider);
                             setShowDetailModal(true);
                           }}
-                          className="text-primary hover:text-blue-900 p-1"
-                          title="Ver detalles"
+                            className="bg-orange-100 hover:bg-orange-200 text-orange-600 hover:text-orange-800 py-1.5 px-2.5 rounded-md transition-colors"
+                            title="Ver detalles"
+                            cursor="pointer"
                         >
                           <EyeIcon className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => handleEditProvider(provider)}
-                          className="text-indigo-600 hover:text-indigo-900 p-1"
-                          title="Editar"
+                            className="bg-orange-100 hover:bg-orange-200 text-orange-600 hover:text-orange-800 py-1.5 px-2.5 rounded-md transition-colors flex items-center"
+                            title="Editar ingreso"
+                            cursor="pointer"
                         >
                           <PencilIcon className="h-4 w-4" />
                         </button>
@@ -291,8 +282,9 @@ const Proveedores = () => {
                               setSelectedProvider(provider);
                               setShowDeleteModal(true);
                             }}
-                            className="text-red-600 hover:text-red-900 p-1"
-                            title="Eliminar"
+                              className="bg-orange-100 hover:bg-orange-200 text-orange-600 hover:text-orange-800 py-1.5 px-2.5 rounded-md transition-colors"
+                              title="Eliminar proveedor"
+                              cursor="pointer"
                           >
                             <TrashIcon className="h-4 w-4" />
                           </button>

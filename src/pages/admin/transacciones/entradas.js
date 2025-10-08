@@ -409,7 +409,7 @@ const Ingresos = () => {
                                       title="Editar ingreso"
                                       cursor="pointer"
                                     >
-                                    <PencilIcon className="h-4 w-4" />  
+                                    <PencilIcon className="h-4 w-4" />
                                     </button>
                                   )}
                                   <button

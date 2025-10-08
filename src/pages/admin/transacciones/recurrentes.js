@@ -11,6 +11,10 @@ import { conceptService } from "../../../lib/services/conceptService";
 import { subconceptService } from "../../../lib/services/subconceptService";
 import { providerService } from "../../../lib/services/providerService";
 import { generalService } from "../../../lib/services/generalService";
+import { 
+  ArrowPathIcon,
+  PlusIcon,
+} from '@heroicons/react/24/outline';
 
 const GastosRecurrentes = () => {
   const router = useRouter();
@@ -193,9 +197,7 @@ const GastosRecurrentes = () => {
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
               <div className="flex items-center space-x-4">
                 <div className="p-3 bg-rose-400 rounded-xl shadow-lg">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
+                  <ArrowPathIcon className="h-6 w-6 text-white" />
                 </div>
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900">Gastos Recurrentes</h1>
@@ -215,10 +217,7 @@ const GastosRecurrentes = () => {
                   <button
                     onClick={() => router.push('/admin/transacciones/recurrentes/nuevo')}
                     className="px-6 py-3 bg-rose-400 text-white rounded-xl hover:bg-rose-500 focus:ring-4 focus:ring-rose-400/20 focus:ring-offset-2 flex items-center justify-center transition-all duration-200 shadow-lg hover:shadow-xl font-medium"
-                  >
-                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
+                  ><PlusIcon className="h-4 w-4 mr-1.5" />
                     Nuevo Gasto Recurrente
                   </button>
                 </div>
@@ -234,9 +233,7 @@ const GastosRecurrentes = () => {
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div className="flex items-center space-x-3">
                   <div className="p-2 bg-rose-400 rounded-lg">
-                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                    </svg>
+                    <ArrowPathIcon className="h-4 w-4 text-white" />
                   </div>
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900">Lista de Gastos Recurrentes</h3>
