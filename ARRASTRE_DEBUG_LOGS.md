@@ -2,7 +2,7 @@
 
 ## Problema Identificado en Pantalla
 
-En la captura de pantalla se observa:
+En la captura de pantalla se observa:a
 - **Período seleccionado**: 01/09/2025 - 30/09/2025 (mes actual)
 - **Balance Arrastrado**: $63,033.60 (aparece, pero posiblemente incompleto)
 - **Problema**: No se están trayendo todos los pendientes de meses anteriores
