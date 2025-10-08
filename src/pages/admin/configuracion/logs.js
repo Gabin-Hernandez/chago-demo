@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import AdminLayout from "../../../components/layout/AdminLayout";
+import RoleProtectedRoute from "../../../components/auth/RoleProtectedRoute";
 import { logService } from "../../../lib/services";
 import { useAuth } from "../../../context/AuthContext";
 import { useToast } from "../../../components/ui/Toast";
@@ -10,29 +11,28 @@ import { generalService } from "../../../lib/services/generalService";
 import { conceptService } from "../../../lib/services/conceptService";
 import { subconceptService } from "../../../lib/services/subconceptService";
 import { providerService } from "../../../lib/services/providerService";
-import {
-  FileText,
-  Edit,
-  Plus,
-  Search,
-  Filter,
-  AlertCircle,
-  CheckCircle,
-  Eye as EyeIcon,
-  User,
-  Tag,
-  Trash,
-  ChevronLeft,
-  ChevronRight,
-  RotateCcw,
-  BarChart3,
-  StickyNote,
-} from "lucide-react";
+
+import { FileText } from "lucide-react";
+import { Edit } from "lucide-react";
+import { Plus } from "lucide-react";
+import { Search } from "lucide-react";
+import { Filter } from "lucide-react";
+import { AlertCircle } from "lucide-react";
+import { CheckCircle } from "lucide-react";
+import { Eye as EyeIcon } from "lucide-react";
+import { User } from "lucide-react";
+import { Tag } from "lucide-react";
+import { Trash } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
+import { ChevronRight } from "lucide-react";
+import { RotateCcw } from "lucide-react";
+import { BarChart3 } from "lucide-react";
+import { StickyNote } from "lucide-react";
 
 
 const LogsPage = () => {
   const router = useRouter();
-  const { user, checkPermission, loading: authLoading, roleLoading } = useAuth();
+  const { user, checkPermission } = useAuth();
   const toast = useToast();
 
   // Función para obtener el tipo de transacción desde diferentes fuentes
@@ -144,7 +144,7 @@ const LogsPage = () => {
   };
 
   // Función para formatear el status de manera legible
-  const formatStatus = (status) => {
+  function formatStatus(status) {
     if (!status) return 'pendiente';
     switch (status.toLowerCase()) {
       case 'pendiente':
@@ -158,7 +158,7 @@ const LogsPage = () => {
       default:
         return status;
     }
-  };
+  }
 
   // Función para detectar logs con datos erróneos
   const hasInvalidData = (log) => {
@@ -180,29 +180,29 @@ const LogsPage = () => {
   };
 
   // Funciones auxiliares para obtener nombres
-  const getGeneralName = (id) => {
+  function getGeneralName(id) {
     if (!id) return 'No definido';
     const general = generals.find(g => g.id === id);
     return general ? general.name : `General ${id}`;
-  };
+  }
 
-  const getConceptName = (id) => {
+  function getConceptName(id) {
     if (!id) return 'No definido';
     const concept = concepts.find(c => c.id === id);
     return concept ? concept.name : `Concepto ${id}`;
-  };
+  }
 
-  const getSubconceptName = (id) => {
+  function getSubconceptName(id) {
     if (!id) return 'No definido';
     const subconcept = subconcepts.find(s => s.id === id);
     return subconcept ? subconcept.name : `Sub-concepto ${id}`;
-  };
+  }
 
-  const getProviderName = (id) => {
+  function getProviderName(id) {
     if (!id) return 'No definido';
     const provider = providers.find(p => p.id === id);
     return provider ? provider.name : `Proveedor ${id}`;
-  };
+  }
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -230,30 +230,10 @@ const LogsPage = () => {
   const [subconcepts, setSubconcepts] = useState([]);
   const [providers, setProviders] = useState([]);
 
-  // Check if user can manage settings
-  const canManageSettings = checkPermission("canManageSettings");
-
   useEffect(() => {
-    // Wait for authentication and role loading to complete
-    if (authLoading || roleLoading) {
-      return;
-    }
-
-    // If user is not authenticated, redirect to login
-    if (!user) {
-      router.push("/login");
-      return;
-    }
-
-    // If user doesn't have permissions, redirect to dashboard
-    if (!canManageSettings) {
-      router.push("/admin/dashboard");
-      return;
-    }
-
     loadLogs();
     loadReferenceData();
-  }, [authLoading, roleLoading, user, canManageSettings, router, loadLogs]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cargar datos de referencia (generales, conceptos, subconceptos, proveedores)
   const loadReferenceData = async () => {
@@ -275,7 +255,7 @@ const LogsPage = () => {
     }
   };
 
-  const loadLogs = useCallback(async (page = 1, append = false) => {
+  const loadLogs = async (page = 1, append = false) => {
     try {
       setLoading(true);
       setError("");
@@ -320,7 +300,7 @@ const LogsPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [filters, pagination.lastDoc]);
+  };
 
 
 
@@ -412,14 +392,14 @@ const LogsPage = () => {
     }
   };
 
-  const formatDate = (timestamp) => {
+  function formatDate(timestamp) {
     if (!timestamp || !timestamp.toDate) {
       return "Fecha no disponible";
     }
     return format(timestamp.toDate(), "dd/MM/yyyy HH:mm:ss", { locale: es });
-  };
+  }
 
-  const getEntityTypeText = (entityType) => {
+  function getEntityTypeText(entityType) {
     switch (entityType) {
       case "transaction":
         return "Transacción";
@@ -436,7 +416,7 @@ const LogsPage = () => {
       default:
         return entityType || "Desconocido";
     }
-  };
+  }
 
   const getActionIcon = (action) => {
     switch (action) {
@@ -469,7 +449,8 @@ const LogsPage = () => {
   // Second getEntityTypeText function removed to fix duplicate definition
 
   return (
-    <AdminLayout>
+    <RoleProtectedRoute requiredPermissions={["canManageSettings"]}>
+      <AdminLayout>
       <div className="w-full px-4 py-8">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold">Registros de Actividad</h1>
@@ -1292,6 +1273,7 @@ const LogsPage = () => {
         )}
       </div>
     </AdminLayout>
+    </RoleProtectedRoute>
   );
 };
 
