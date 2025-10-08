@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/router";
 import AdminLayout from "../../../components/layout/AdminLayout";
 import { logService } from "../../../lib/services";
@@ -18,7 +18,7 @@ import {
   Filter,
   AlertCircle,
   CheckCircle,
-  Calendar,
+  Eye as EyeIcon,
   User,
   Tag,
   Trash,
@@ -28,13 +28,11 @@ import {
   BarChart3,
   StickyNote,
 } from "lucide-react";
-import { 
-  EyeIcon,
-} from '@heroicons/react/24/outline';
+
 
 const LogsPage = () => {
   const router = useRouter();
-  const { user, checkPermission } = useAuth();
+  const { user, checkPermission, loading: authLoading, roleLoading } = useAuth();
   const toast = useToast();
 
   // Función para obtener el tipo de transacción desde diferentes fuentes
@@ -236,14 +234,26 @@ const LogsPage = () => {
   const canManageSettings = checkPermission("canManageSettings");
 
   useEffect(() => {
+    // Wait for authentication and role loading to complete
+    if (authLoading || roleLoading) {
+      return;
+    }
+
+    // If user is not authenticated, redirect to login
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+
+    // If user doesn't have permissions, redirect to dashboard
     if (!canManageSettings) {
-      router.push("/admin");
+      router.push("/admin/dashboard");
       return;
     }
 
     loadLogs();
     loadReferenceData();
-  }, [canManageSettings, router]);
+  }, [authLoading, roleLoading, user, canManageSettings, router, loadLogs]);
 
   // Cargar datos de referencia (generales, conceptos, subconceptos, proveedores)
   const loadReferenceData = async () => {
@@ -265,7 +275,7 @@ const LogsPage = () => {
     }
   };
 
-  const loadLogs = async (page = 1, append = false) => {
+  const loadLogs = useCallback(async (page = 1, append = false) => {
     try {
       setLoading(true);
       setError("");
@@ -310,7 +320,7 @@ const LogsPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters, pagination.lastDoc]);
 
 
 
@@ -779,7 +789,7 @@ const LogsPage = () => {
               <div className="p-6 border-b">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                    <Eye className="w-5 h-5 mr-2 text-blue-600" />
+                    <EyeIcon className="w-5 h-5 mr-2 text-blue-600" />
                     Detalles de {selectedLog.action === 'update' ? 'Actualización' : selectedLog.action === 'delete' ? 'Eliminación' : 'Operación'}
                   </h3>
                   <button
