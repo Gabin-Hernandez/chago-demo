@@ -321,6 +321,35 @@ function prepareFinancialData(transactions, concepts, providers) {
     .filter((item) => item.total > 0);
   gastosPorProveedor.sort((a, b) => b.total - a.total);
 
+  // Análisis por divisiones
+  const divisionLabels = {
+    'general': 'General',
+    '2da_division': '2nda división profesional',
+    '3ra_division': '3ra división profesional'
+  };
+
+  const gastosPorDivision = Object.keys(divisionLabels).map((divisionValue) => {
+    const transaccionesDivision = transactions.filter(
+      (t) => t.type === "salida" && t.division === divisionValue
+    );
+    const total = transaccionesDivision.reduce((sum, t) => sum + t.amount, 0);
+    return {
+      division: divisionLabels[divisionValue],
+      divisionValue: divisionValue,
+      total,
+      numeroTransacciones: transaccionesDivision.length,
+      transacciones: transaccionesDivision.map((t) => ({
+        id: t.id,
+        amount: t.amount,
+        description: t.description,
+        date: t.date.toDate ? t.date.toDate() : new Date(t.date),
+        conceptId: t.conceptId,
+      })),
+      porcentaje: totalGastos > 0 ? (total / totalGastos) * 100 : 0,
+    };
+  }).filter((item) => item.total > 0);
+  gastosPorDivision.sort((a, b) => b.total - a.total);
+
   // Transacciones detalladas para análisis específicos
   const transaccionesDetalladas = transactions.map((t) => {
     const concept = concepts.find((c) => c.id === t.conceptId);
@@ -343,6 +372,7 @@ function prepareFinancialData(transactions, concepts, providers) {
       provider: provider ? provider.name : "Sin proveedor",
       providerId: t.providerId,
       status: t.status,
+      division: t.division || null, // Agregar el campo de división
     };
   });
 
@@ -361,6 +391,7 @@ function prepareFinancialData(transactions, concepts, providers) {
     // Análisis agrupados
     gastosPorConcepto,
     gastosPorProveedor,
+    gastosPorDivision,
 
     // Datos detallados para análisis específicos
     transaccionesDetalladas,
@@ -786,6 +817,24 @@ function filterDataByQuestion(financialData, questionAnalysis) {
     gastosPorProveedor[t.provider] += t.amount;
   });
 
+  // Recalcular gastos por división con datos filtrados
+  const divisionLabels = {
+    'general': 'General',
+    '2da_division': '2nda división profesional',
+    '3ra_division': '3ra división profesional'
+  };
+  
+  const gastosPorDivision = {};
+  filteredGastos.forEach((t) => {
+    if (t.division) {
+      const divisionLabel = divisionLabels[t.division] || t.division;
+      if (!gastosPorDivision[divisionLabel]) {
+        gastosPorDivision[divisionLabel] = 0;
+      }
+      gastosPorDivision[divisionLabel] += t.amount;
+    }
+  });
+
   return {
     metricas: {
       totalGastos,
@@ -807,6 +856,13 @@ function filterDataByQuestion(financialData, questionAnalysis) {
     gastosPorProveedor: Object.entries(gastosPorProveedor)
       .map(([proveedor, total]) => ({
         proveedor,
+        total,
+        porcentaje: totalGastos > 0 ? (total / totalGastos) * 100 : 0,
+      }))
+      .sort((a, b) => b.total - a.total),
+    gastosPorDivision: Object.entries(gastosPorDivision)
+      .map(([division, total]) => ({
+        division,
         total,
         porcentaje: totalGastos > 0 ? (total / totalGastos) * 100 : 0,
       }))
@@ -884,10 +940,19 @@ function cleanAndConsolidateData(filteredData) {
     }))
     .sort((a, b) => b.total - a.total);
 
+  // Incluir gastosPorDivision si existen
+  const cleanedGastosPorDivision = filteredData.gastosPorDivision 
+    ? filteredData.gastosPorDivision.map((item) => ({
+        ...item,
+        porcentaje: totalGastos > 0 ? (item.total / totalGastos) * 100 : 0,
+      })).sort((a, b) => b.total - a.total)
+    : [];
+
   return {
     ...filteredData,
     gastosPorConcepto: cleanedGastosPorConcepto,
     gastosPorProveedor: cleanedGastosPorProveedor,
+    gastosPorDivision: cleanedGastosPorDivision,
   };
 }
 
@@ -899,7 +964,7 @@ async function generateChatbotResponse(
   visualizationComponents = null,
   systemData = null
 ) {
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
   // Limpiar datos antes de enviar a la IA
   const cleanedData = cleanAndConsolidateData(filteredData);
@@ -931,8 +996,21 @@ async function generateChatbotResponse(
     all: "total",
   };
 
+  // Generate unique request ID to prevent caching
+  const requestTimestamp = new Date().toISOString();
+  const currentDate = new Date().toLocaleDateString('es-MX', { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+
   const prompt = `
+[Request ID: ${requestTimestamp}]
+[Fecha actual: ${currentDate}]
+
 Eres un asistente financiero experto. Analiza esta pregunta específica: "${question}"
+
+IMPORTANTE: Esta es una consulta NUEVA y ÚNICA. NO reutilices respuestas anteriores. Analiza SOLO los datos proporcionados a continuación para esta consulta específica.
 
 DATOS FINANCIEROS FILTRADOS PARA ESTA CONSULTA (${timeFrameText[cleanedData.periodo] || "período solicitado"}):
 ${JSON.stringify(cleanedData, null, 2)}
@@ -954,15 +1032,35 @@ DATOS COMPLETOS DEL SISTEMA DISPONIBLES:
 - Divisiones disponibles: ${systemData?.divisions?.map((d) => d.label).join(", ") || "No disponible"}
 
 CONTEXTO ADICIONAL:
-- Las categorías generales agrupan los conceptos por tipo (ej: "Jornada 1", "Jornada 2", etc.)
-- Los términos "J1", "J2", "J3" se refieren a "Jornada 1", "Jornada 2", "Jornada 3" respectivamente
-- Cuando se mencionen "generales" se refiere a las categorías generales del sistema
-- Los subconceptos son subcategorías dentro de cada concepto principal
-- Las divisiones incluyen: General, 2nda división profesional, y 3ra división profesional
-- Si se pregunta por "conceptos del mes" muestra el desglose por conceptos individuales
-- Si se pregunta por "generales del mes" muestra el desglose por categorías generales
-- Si se pregunta por "subconceptos del mes" muestra el desglose por subconceptos
-- Si se pregunta por "divisiones del mes" muestra el desglose por divisiones
+- Las "CATEGORÍAS GENERALES" (o "GENERALES") son agrupaciones de alto nivel que contienen múltiples conceptos
+  * Ejemplos de categorías generales pueden incluir: diferentes tipos de gastos operativos, administrativos, etc.
+  * Las categorías generales varían según la configuración del sistema
+- Los "CONCEPTOS" son categorías específicas de gasto dentro de una categoría general
+  * Ejemplo: "MOVILIDAD", "NOMINA ADMINISTRATIVA", "BECA PREMIER JUGADORES" son conceptos
+- Los "SUBCONCEPTOS" son subcategorías dentro de cada concepto principal
+- Las "DIVISIONES" son categorías que clasifican los GASTOS según su tipo:
+  * "General": Gastos administrativos y operacionales generales
+  * "2nda división profesional": Gastos relacionados con la segunda división
+  * "3ra división profesional": Gastos relacionados con la tercera división
+  * IMPORTANTE: Las divisiones SOLO aplican a GASTOS (type: "salida"), NO a ingresos
+
+REGLAS DE INTERPRETACIÓN - CRÍTICO:
+1. Si la pregunta incluye "generales del mes" o "categorías generales":
+   - USA EXCLUSIVAMENTE los datos de: querySpecificData.chartData
+   - NO uses gastosPorConcepto (esos son conceptos individuales, no generales)
+   - Agrupa por categorías generales de alto nivel (Jornada 1, Jornada 2, etc.)
+
+2. Si la pregunta incluye "conceptos del mes" o menciona conceptos específicos:
+   - USA los datos de: gastosPorConcepto
+   - Muestra el desglose detallado por conceptos individuales
+
+3. Si la pregunta incluye "divisiones del mes" o "gastos por división":
+   - USA los datos de: gastosPorDivision
+   - Muestra cómo se distribuyen entre General, 2nda división, 3ra división
+
+4. Si la pregunta incluye "subconceptos del mes":
+   - USA los datos de subconceptos proporcionados
+   - Muestra el desglose por subconceptos
 `
     : ""
 }
@@ -983,14 +1081,14 @@ IMPORTANTE:
 - Sé específico sobre el período analizado
 - SIEMPRE usa formato de moneda mexicana (ej: $28,450 MXN) para cantidades monetarias en el texto
 - Para números que NO son dinero (como cantidad de proveedores), NO uses formato de moneda
-- IMPORTANTE: Agrupa correctamente por concepto - si hay múltiples transacciones del mismo concepto, súmalas en UNA SOLA categoría
-- NO duplicar conceptos en la respuesta ni en los datos de gráficas
-- Usa EXACTAMENTE los nombres de conceptos que aparecen en gastosPorConcepto para evitar duplicados
-- Si la pregunta menciona "generales" o "categorías", usa los datos de categorías generales
-- Si la pregunta menciona "conceptos", usa los datos de conceptos individuales
-- Si la pregunta menciona "subconceptos", usa los datos de subconceptos
-- Si la pregunta menciona "divisiones" o "división", usa los datos de divisiones
-- Si la pregunta menciona "proveedores", usa los datos de proveedores
+
+FUENTE DE DATOS - CRÍTICO:
+- Para preguntas sobre "GENERALES" o "CATEGORÍAS GENERALES": usa querySpecificData.chartData
+- Para preguntas sobre "CONCEPTOS": usa gastosPorConcepto del cleanedData
+- Para preguntas sobre "DIVISIONES": usa gastosPorDivision del cleanedData  
+- Para preguntas sobre "PROVEEDORES": usa gastosPorProveedor del cleanedData
+- NO mezcles conceptos individuales cuando se pregunta por generales
+- NO uses gastosPorConcepto cuando se pregunta explícitamente por "generales del mes"
 
 INSTRUCCIONES PARA GRÁFICAS:
 ${questionAnalysis.chartType ? `- Tipo de gráfica sugerida: ${questionAnalysis.chartType}` : "- Propón el tipo de gráfica más relevante"}
@@ -998,8 +1096,9 @@ ${questionAnalysis.chartType ? `- Tipo de gráfica sugerida: ${questionAnalysis.
 - Para comparaciones de montos: usa "bar"
 - Para tendencias temporales: usa "line"
 - IMPORTANTE: NUNCA uses gráficos de tipo "pie" - siempre usa "bar" para distribuciones
-- Para gráficas de distribución por conceptos, usa EXACTAMENTE los datos de gastosPorConcepto (ya están agrupados correctamente)
-- Para gráficas de categorías generales, usa los datos específicos de querySpecificData.chartData
+- Si la pregunta es sobre GENERALES: usa los datos de querySpecificData.chartData para la gráfica
+- Si la pregunta es sobre CONCEPTOS: usa los datos de gastosPorConcepto para la gráfica
+- Si la pregunta es sobre DIVISIONES: usa los datos de gastosPorDivision para la gráfica
 
 Responde en formato JSON con esta estructura exacta:
 {

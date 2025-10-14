@@ -42,6 +42,10 @@ const FinancialChatbot = () => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [lastQuery, setLastQuery] = useState("");
   const [showWelcome, setShowWelcome] = useState(true);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [estimatedTime, setEstimatedTime] = useState(null);
+  const [loadingStage, setLoadingStage] = useState("");
+  const [conversationHistory, setConversationHistory] = useState([]);
 
   // Sistema de colores consistente para conceptos
   const getConceptColor = (conceptName, format = "hex") => {
@@ -168,18 +172,37 @@ const FinancialChatbot = () => {
   };
 
   const suggestedQuestions = [
-    "¿Cuánto gasté en los últimos 2 meses?", // Consulta mensual - 500 transacciones
-    "¿Cuáles son mis mayores gastos este mes?", // Consulta mensual - 500 transacciones
-    "Me puedes dar los generales del mes", // Nueva consulta específica
-    "Me puedes dar los conceptos del mes", // Nueva consulta específica
-    "¿Cuánto gasté en J2 este mes?", // Consulta específica de jornada
-    "¿Cuáles son los subconceptos del mes?", // Nueva consulta de subconceptos
-    "¿Cómo se distribuyen los gastos por división?", // Nueva consulta de divisiones
-    "¿Cómo está mi balance actual?", // Consulta rápida - 100 transacciones
-    "¿Cuál es mi tendencia de gastos histórica?", // Consulta histórica - 5000 transacciones
-    "¿En qué concepto gasto más dinero este año?", // Consulta anual - 3000 transacciones
-    "¿Qué proveedores son los más costosos en los últimos 6 meses?", // Consulta trimestral - 1500 transacciones
-    "Muéstrame el análisis completo de mis finanzas", // Consulta histórica - 5000 transacciones
+    // Consultas por Categorías Generales
+    "¿Cuáles son los generales del mes?",
+    "Muéstrame todas las categorías generales con gastos",
+    "Compara los gastos entre categorías generales",
+    
+    // Consultas por Conceptos (Nómina, Movilidad, etc.)
+    "¿Cuáles son los conceptos del mes?",
+    "¿En qué concepto gasto más este mes?",
+    "Muéstrame todos los gastos de MOVILIDAD",
+    
+    // Consultas por Divisiones (General, 2da, 3ra división)
+    "¿Cómo se distribuyen los gastos por división?",
+    "¿Cuánto se gastó en 2nda división profesional?",
+    "Compara gastos entre divisiones este mes",
+    
+    // Consultas por Subconceptos
+    "¿Cuáles son los subconceptos del mes?",
+    "Desglose detallado de subconceptos",
+    
+    // Consultas por Proveedores
+    "¿Qué proveedores son los más costosos este mes?",
+    "Top 5 proveedores con mayores gastos",
+    
+    // Consultas Temporales Específicas
+    "¿Cuánto gasté en septiembre 2025?",
+    "Balance de los últimos 3 meses",
+    "Tendencia de gastos del último año",
+    
+    // Consultas de Balance y Estado Actual
+    "¿Cómo está mi balance actual?",
+    "¿Cuáles son mis mayores gastos hoy?",
   ];
 
   const handleSendMessage = async (messageText = null) => {
@@ -194,8 +217,56 @@ const FinancialChatbot = () => {
     setVisualData(null);
     setShowWelcome(false);
     setIsExpanded(false);
+    setLoadingProgress(0);
+    setLoadingStage("Iniciando análisis...");
+
+    // Determinar tiempo estimado basado en palabras clave
+    const messageLower = message.toLowerCase();
+    let estimatedSeconds = 10; // Por defecto
+    
+    if (messageLower.includes("año") || messageLower.includes("anual") || messageLower.includes("12 meses")) {
+      estimatedSeconds = 60; // 1 minuto para análisis anual
+    } else if (messageLower.includes("histórico") || messageLower.includes("tendencia") || messageLower.includes("6 meses")) {
+      estimatedSeconds = 45; // 45 segundos para históricos
+    } else if (messageLower.includes("trimestre") || messageLower.includes("3 meses")) {
+      estimatedSeconds = 30; // 30 segundos para trimestre
+    } else if (messageLower.includes("mes") || messageLower.includes("2 meses")) {
+      estimatedSeconds = 15; // 15 segundos para mensual
+    } else if (messageLower.includes("hoy") || messageLower.includes("balance actual")) {
+      estimatedSeconds = 5; // 5 segundos para consultas rápidas
+    }
+    
+    setEstimatedTime(estimatedSeconds);
+
+    // Simular progreso durante la carga
+    const progressInterval = setInterval(() => {
+      setLoadingProgress(prev => {
+        if (prev >= 95) return prev; // No pasar del 95% hasta que termine
+        return prev + (100 - prev) * 0.1; // Incremento exponencial decreciente
+      });
+    }, estimatedSeconds * 10); // Actualizar cada décima parte del tiempo estimado
+
+    // Cambiar mensajes de etapa
+    const stages = [
+      { progress: 0, message: "Iniciando análisis..." },
+      { progress: 20, message: "Recuperando transacciones..." },
+      { progress: 40, message: "Procesando datos financieros..." },
+      { progress: 60, message: "Analizando con IA..." },
+      { progress: 80, message: "Generando visualizaciones..." },
+      { progress: 95, message: "Finalizando..." }
+    ];
+
+    const stageInterval = setInterval(() => {
+      setLoadingProgress(current => {
+        const currentStage = stages.find(s => current < s.progress) || stages[stages.length - 1];
+        setLoadingStage(currentStage.message);
+        return current;
+      });
+    }, estimatedSeconds * 1000 / stages.length);
 
     try {
+      const startTime = Date.now();
+      
       const response = await fetch("/api/ai/chatbot", {
         method: "POST",
         headers: {
@@ -209,6 +280,12 @@ const FinancialChatbot = () => {
       }
 
       const data = await response.json();
+      
+      // Completar progreso
+      clearInterval(progressInterval);
+      clearInterval(stageInterval);
+      setLoadingProgress(100);
+      setLoadingStage("¡Completado!");
 
       if (!data.success) {
         setError(data.message || "Error al procesar la consulta");
@@ -229,10 +306,17 @@ const FinancialChatbot = () => {
         setError("Se recibió la respuesta pero no hay datos para visualizar.");
       }
     } catch (err) {
+      // Limpiar intervalos en caso de error
+      clearInterval(progressInterval);
+      clearInterval(stageInterval);
+      
       console.error("Error en chatbot:", err);
       setError("Error al procesar tu pregunta. Por favor, intenta nuevamente.");
     } finally {
       setIsLoading(false);
+      setLoadingProgress(0);
+      setEstimatedTime(null);
+      setLoadingStage("");
     }
   };
 
@@ -883,12 +967,152 @@ const FinancialChatbot = () => {
               </p>
             </div>
 
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 text-left">
+                Ejemplos de consultas organizadas:
+              </h3>
+              
+              {/* Consultas por Categorías Generales */}
+              <div className="mb-6">
+                <div className="flex items-center mb-3">
+                  <PieChart className="h-5 w-5 mr-2 text-blue-600" />
+                  <h4 className="text-sm font-semibold text-gray-700">Categorías Generales</h4>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <button
+                    onClick={() => handleSendMessage("¿Cuáles son los generales del mes?")}
+                    className="p-3 text-left bg-white rounded-lg border border-blue-200 hover:border-blue-400 hover:shadow-md transition-all duration-200 text-sm"
+                    disabled={isLoading}
+                  >
+                    💼 ¿Cuáles son los generales del mes?
+                  </button>
+                  <button
+                    onClick={() => handleSendMessage("Compara los gastos entre categorías generales")}
+                    className="p-3 text-left bg-white rounded-lg border border-blue-200 hover:border-blue-400 hover:shadow-md transition-all duration-200 text-sm"
+                    disabled={isLoading}
+                  >
+                    📊 Compara categorías generales
+                  </button>
+                </div>
+              </div>
+
+              {/* Consultas por Conceptos */}
+              <div className="mb-6">
+                <div className="flex items-center mb-3">
+                  <BarChart3 className="h-5 w-5 mr-2 text-green-600" />
+                  <h4 className="text-sm font-semibold text-gray-700">Conceptos de Gasto</h4>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <button
+                    onClick={() => handleSendMessage("¿Cuáles son los conceptos del mes?")}
+                    className="p-3 text-left bg-white rounded-lg border border-green-200 hover:border-green-400 hover:shadow-md transition-all duration-200 text-sm"
+                    disabled={isLoading}
+                  >
+                    📋 ¿Cuáles son los conceptos del mes?
+                  </button>
+                  <button
+                    onClick={() => handleSendMessage("¿En qué concepto gasto más este mes?")}
+                    className="p-3 text-left bg-white rounded-lg border border-green-200 hover:border-green-400 hover:shadow-md transition-all duration-200 text-sm"
+                    disabled={isLoading}
+                  >
+                    🎯 ¿En qué concepto gasto más?
+                  </button>
+                </div>
+              </div>
+
+              {/* Consultas por Divisiones */}
+              <div className="mb-6">
+                <div className="flex items-center mb-3">
+                  <TrendingUp className="h-5 w-5 mr-2 text-purple-600" />
+                  <h4 className="text-sm font-semibold text-gray-700">Divisiones Profesionales</h4>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <button
+                    onClick={() => handleSendMessage("¿Cómo se distribuyen los gastos por división?")}
+                    className="p-3 text-left bg-white rounded-lg border border-purple-200 hover:border-purple-400 hover:shadow-md transition-all duration-200 text-sm"
+                    disabled={isLoading}
+                  >
+                    ⚽ Distribución por división
+                  </button>
+                  <button
+                    onClick={() => handleSendMessage("¿Cuánto se gastó en 2nda división profesional?")}
+                    className="p-3 text-left bg-white rounded-lg border border-purple-200 hover:border-purple-400 hover:shadow-md transition-all duration-200 text-sm"
+                    disabled={isLoading}
+                  >
+                    🏆 Gastos 2nda división
+                  </button>
+                </div>
+              </div>
+
+              {/* Consultas por Proveedores */}
+              <div className="mb-6">
+                <div className="flex items-center mb-3">
+                  <DollarSign className="h-5 w-5 mr-2 text-amber-600" />
+                  <h4 className="text-sm font-semibold text-gray-700">Análisis de Proveedores</h4>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <button
+                    onClick={() => handleSendMessage("¿Qué proveedores son los más costosos este mes?")}
+                    className="p-3 text-left bg-white rounded-lg border border-amber-200 hover:border-amber-400 hover:shadow-md transition-all duration-200 text-sm"
+                    disabled={isLoading}
+                  >
+                    🏢 Proveedores más costosos
+                  </button>
+                  <button
+                    onClick={() => handleSendMessage("Top 5 proveedores con mayores gastos")}
+                    className="p-3 text-left bg-white rounded-lg border border-amber-200 hover:border-amber-400 hover:shadow-md transition-all duration-200 text-sm"
+                    disabled={isLoading}
+                  >
+                    📈 Top 5 proveedores
+                  </button>
+                </div>
+              </div>
+
+              {/* Consultas Temporales */}
+              <div className="mb-6">
+                <div className="flex items-center mb-3">
+                  <Sparkles className="h-5 w-5 mr-2 text-indigo-600" />
+                  <h4 className="text-sm font-semibold text-gray-700">Análisis Temporal</h4>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <button
+                    onClick={() => handleSendMessage("¿Cómo está mi balance actual?")}
+                    className="p-3 text-left bg-white rounded-lg border border-indigo-200 hover:border-indigo-400 hover:shadow-md transition-all duration-200 text-sm"
+                    disabled={isLoading}
+                  >
+                    💰 Balance actual
+                  </button>
+                  <button
+                    onClick={() => handleSendMessage("Balance de los últimos 3 meses")}
+                    className="p-3 text-left bg-white rounded-lg border border-indigo-200 hover:border-indigo-400 hover:shadow-md transition-all duration-200 text-sm"
+                    disabled={isLoading}
+                  >
+                    📅 Balance últimos 3 meses
+                  </button>
+                  <button
+                    onClick={() => handleSendMessage("Tendencia de gastos del último año")}
+                    className="p-3 text-left bg-white rounded-lg border border-indigo-200 hover:border-indigo-400 hover:shadow-md transition-all duration-200 text-sm"
+                    disabled={isLoading}
+                  >
+                    📉 Tendencia anual
+                  </button>
+                  <button
+                    onClick={() => handleSendMessage("¿Cuánto gasté en septiembre 2025?")}
+                    className="p-3 text-left bg-white rounded-lg border border-indigo-200 hover:border-indigo-400 hover:shadow-md transition-all duration-200 text-sm"
+                    disabled={isLoading}
+                  >
+                    🗓️ Gastos de septiembre
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-8">
-              {suggestedQuestions.map((question, index) => (
+              {suggestedQuestions.slice(0, 6).map((question, index) => (
                 <button
                   key={index}
                   onClick={() => handleSendMessage(question)}
-                  className="p-4 text-left bg-white rounded-lg border border-gray-200 hover:border-purple-300 hover:shadow-md transition-all duration-200"
+                  className="p-4 text-left bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg border border-purple-200 hover:border-purple-400 hover:shadow-lg transition-all duration-200"
                   disabled={isLoading}
                 >
                   <div className="text-sm font-medium text-gray-900">
@@ -1032,9 +1256,27 @@ const FinancialChatbot = () => {
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
               Analizando tus datos...
             </h3>
-            <p className="text-gray-600">
+            <p className="text-gray-600 mb-6">
               Procesando &ldquo;{lastQuery}&rdquo;
             </p>
+            
+            {/* Barra de progreso */}
+            {estimatedTime && (
+              <div className="mt-6 px-8">
+                <div className="w-full bg-gray-200 rounded-full h-3 mb-3 overflow-hidden">
+                  <div 
+                    className="bg-gradient-to-r from-purple-600 to-indigo-600 h-3 rounded-full transition-all duration-300 ease-out"
+                    style={{ width: `${loadingProgress}%` }}
+                  />
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-700 font-medium">{loadingStage}</span>
+                  <span className="text-gray-500">
+                    {loadingProgress.toFixed(0)}% • ~{estimatedTime}s
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
