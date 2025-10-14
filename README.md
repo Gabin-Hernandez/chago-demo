@@ -6,7 +6,7 @@ First, run the development server:a
 
 ```bashaaa
 npm run deva
-# oraas
+# oraasa
 yarn devaa
 # oraaaaaa
 pnpm devaa
