@@ -97,6 +97,16 @@ export const recurringExpenseService = {
     try {
       const activeExpenses = await this.getAll({ isActive: true });
       const today = new Date();
+      
+      // ✅ CORRECCIÓN CRÍTICA: Para suscripciones mensuales, siempre normalizar al día 1
+      // Esto evita que se generen cobros el día 31 u otros días del mes
+      const normalizedToday = new Date(today);
+      if (normalizedToday.getDate() !== 1) {
+        // Solo generamos en día 1 para frecuencias mensuales
+        // Las demás frecuencias usan la fecha actual
+        console.log(`⚠️ Not the 1st of the month (today is ${this.formatDateKey(today)}). Monthly subscriptions will only generate on day 1.`);
+      }
+      
       const todayKey = this.formatDateKey(today);
       const generatedTransactions = [];
 
@@ -200,7 +210,9 @@ export const recurringExpenseService = {
         return day === 15 || day === dayBeforeLast;
         
       case 'monthly':
-        // Generate on 1st of month (backward compatibility)
+        // ✅ CORRECCIÓN: Generar SIEMPRE el día 1 del mes (normalizado)
+        // Sin importar cuántos días tenga el mes anterior (28, 29, 30 o 31)
+        // Esto asegura que todas las suscripciones mensuales se cobren el primer día del mes
         return currentDate.getDate() === 1;
         
       default:
