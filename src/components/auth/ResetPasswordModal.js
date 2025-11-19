@@ -42,10 +42,12 @@ const ResetPasswordModal = ({ isOpen, onClose, defaultEmail = "" }) => {
         success("Hemos enviado un enlace para restablecer tu contraseña");
       } else {
         let message = "No se pudo enviar el correo de recuperación";
-        if (result.error?.includes("user-not-found")) {
+        if (result.code === "auth/user-not-found" || result.error?.includes("user-not-found")) {
           message = "No existe un usuario con ese correo";
-        } else if (result.error?.includes("invalid-email")) {
+        } else if (result.code === "auth/invalid-email" || result.error?.includes("invalid-email")) {
           message = "Correo inválido";
+        } else if (result.code === "auth/too-many-requests") {
+          message = "Demasiados intentos. Intenta más tarde";
         }
         setError(message);
         toastError(message);

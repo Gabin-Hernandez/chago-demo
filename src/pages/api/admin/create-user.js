@@ -47,19 +47,32 @@ export default async function handler(req, res) {
     }
 
     // Verify current user has admin permissions
-    // Check if user exists in Firestore and has admin role
+    // Check if user exists in Firestore and has admin role or is master user
+    const MASTER_EMAIL = "juan@jhernandez.mx";
+    const isMasterUser = currentUser.email === MASTER_EMAIL;
+    
     try {
       // Get user document from Firestore using Admin SDK
       const userDoc = await admin.firestore().collection('users').doc(currentUser.uid).get();
 
-      if (!userDoc.exists) {
+      if (!userDoc.exists && !isMasterUser) {
         return res.status(403).json({ message: "Usuario no encontrado en la base de datos" });
       }
 
-      const userData = userDoc.data();
-      if (userData.role !== "administrativo") {
-        return res.status(403).json({ message: "No tienes permisos para gestionar usuarios" });
+      const userData = userDoc.exists ? userDoc.data() : { email: currentUser.email };
+      
+      // Allow master user or users with canManageUsers permission
+      if (!isMasterUser) {
+        // Get role permissions
+        const roleDoc = await admin.firestore().collection('roles').doc(userData.role).get();
+        const rolePermissions = roleDoc.exists ? roleDoc.data().permissions : {};
+        
+        if (!rolePermissions.canManageUsers && userData.role !== "administrativo") {
+          return res.status(403).json({ message: "No tienes permisos para gestionar usuarios" });
+        }
       }
+      
+      console.log(`User ${currentUser.email} ${isMasterUser ? '(MASTER)' : '(role: ' + userData.role + ')'} is creating a new user`);
     } catch (error) {
       console.error("Error verificando permisos:", error);
       return res.status(500).json({ message: "Error interno del servidor" });

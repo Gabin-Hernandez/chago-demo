@@ -40,20 +40,33 @@ export default async function handler(req, res) {
     }
 
     // Verify current user has admin permissions
-    // Check if user exists in Firestore and has admin role
+    // Check if user exists in Firestore and has admin role or is master user
     let currentUserData;
+    const MASTER_EMAIL = "juan@jhernandez.mx";
+    const isMasterUser = currentUser.email === MASTER_EMAIL;
+    
     try {
       // Get user document from Firestore using Admin SDK
       const userDoc = await admin.firestore().collection('users').doc(currentUser.uid).get();
 
-      if (!userDoc.exists) {
+      if (!userDoc.exists && !isMasterUser) {
         return res.status(403).json({ message: "Usuario no encontrado en la base de datos" });
       }
 
-      currentUserData = userDoc.data();
-      if (currentUserData.role !== "administrativo") {
-        return res.status(403).json({ message: "No tienes permisos para gestionar usuarios" });
+      currentUserData = userDoc.exists ? userDoc.data() : { email: currentUser.email };
+      
+      // Allow master user or users with canManageUsers permission
+      if (!isMasterUser) {
+        // Get role permissions
+        const roleDoc = await admin.firestore().collection('roles').doc(currentUserData.role).get();
+        const rolePermissions = roleDoc.exists ? roleDoc.data().permissions : {};
+        
+        if (!rolePermissions.canManageUsers && currentUserData.role !== "administrativo") {
+          return res.status(403).json({ message: "No tienes permisos para gestionar usuarios" });
+        }
       }
+      
+      console.log(`User ${currentUser.email} ${isMasterUser ? '(MASTER)' : '(role: ' + currentUserData.role + ')'} is updating user ${userId}`);
     } catch (error) {
       console.error("Error verificando permisos:", error);
       return res.status(500).json({ message: "Error interno del servidor" });
@@ -120,7 +133,35 @@ export default async function handler(req, res) {
         authUpdateData.password = password;
       }
 
-      await admin.auth().updateUser(userId, authUpdateData);
+      // Try to update user, if not found, create it
+      try {
+        await admin.auth().updateUser(userId, authUpdateData);
+      } catch (authError) {
+        if (authError.code === "auth/user-not-found") {
+          // Usuario existe en Firestore pero no en Authentication
+          // Crear usuario en Authentication
+          console.log("Usuario no encontrado en Auth, creando...");
+          
+          if (!password || password.trim() === "") {
+            return res.status(400).json({ 
+              message: "Se requiere una contraseña para crear el usuario en Firebase Authentication" 
+            });
+          }
+
+          const createUserData = {
+            uid: userId,
+            email: targetUserData?.email || email,
+            password: password,
+            displayName: displayName.trim(),
+            emailVerified: false,
+          };
+
+          await admin.auth().createUser(createUserData);
+          console.log("Usuario creado exitosamente en Authentication");
+        } else {
+          throw authError;
+        }
+      }
 
       // Update user record in Firestore
       const db = admin.firestore();
