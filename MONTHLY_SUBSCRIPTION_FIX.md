@@ -5,7 +5,7 @@
 Se corrigió un bug crítico en el sistema de suscripciones/gastos recurrentes mensuales donde los cobros se generaban el día 31 en lugar del día 1 del mes siguiente.
 
 **Fecha de corrección:** 4 de noviembre de 2025  
-**Versión:** 1.0  
+**Versión:** 1.0  a
 **Estado:** ✅ Completado
 
 ---
