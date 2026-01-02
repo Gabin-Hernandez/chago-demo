@@ -16,6 +16,14 @@ import { transactionService } from "./transactionService";
 
 const COLLECTION_NAME = "recurringExpenses";
 
+// Helper para obtener la fecha actual en zona horaria de México
+const getMexicoDate = () => {
+  const now = new Date();
+  // Convertir a zona horaria de México (America/Mexico_City)
+  const mexicoDateStr = now.toLocaleString('en-US', { timeZone: 'America/Mexico_City' });
+  return new Date(mexicoDateStr);
+};
+
 export const recurringExpenseService = {
   // Create a new recurring expense
   async create(expenseData, user) {
@@ -96,16 +104,9 @@ export const recurringExpenseService = {
   async generatePendingTransactions(user) {
     try {
       const activeExpenses = await this.getAll({ isActive: true });
-      const today = new Date();
-      
-      // ✅ CORRECCIÓN CRÍTICA: Para suscripciones mensuales, siempre normalizar al día 1
-      // Esto evita que se generen cobros el día 31 u otros días del mes
-      const normalizedToday = new Date(today);
-      if (normalizedToday.getDate() !== 1) {
-        // Solo generamos en día 1 para frecuencias mensuales
-        // Las demás frecuencias usan la fecha actual
-        console.log(`⚠️ Not the 1st of the month (today is ${this.formatDateKey(today)}). Monthly subscriptions will only generate on day 1.`);
-      }
+      // ✅ Usar zona horaria de México para evaluar correctamente el día
+      const today = getMexicoDate();
+      console.log(`[TIMEZONE] Server UTC: ${new Date().toISOString()}, Mexico: ${today.toISOString()}, Day: ${today.getDate()}`);
       
       const todayKey = this.formatDateKey(today);
       const generatedTransactions = [];

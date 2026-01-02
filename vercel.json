@@ -2,11 +2,11 @@
   "crons": [
     {
       "path": "/api/cron/generate-recurring",
-      "schedule": "0 0 * * *"
+      "schedule": "0 6 * * *"
     },
     {
       "path": "/api/cron/calculate-carryover",
-      "schedule": "0 0 1 * *"
+      "schedule": "0 6 1 * *"
     }
   ]
 }
