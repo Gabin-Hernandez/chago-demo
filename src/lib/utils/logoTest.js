@@ -3,16 +3,11 @@
  */
 export const testLogoAvailability = async () => {
   const logoUrls = [
-    '/logo.webp',
-    '/logo.png', 
-    '/logo.jpg',
-    '/logo.jpeg',
-    '/logo-santi.png',
-    '/logo-santi.jpg'
+    '/demo-button-label-filled-icon.jpg',
   ];
 
   console.log('🔍 Testing logo availability...');
-  
+
   for (const logoUrl of logoUrls) {
     try {
       const response = await fetch(logoUrl, { method: 'HEAD' });

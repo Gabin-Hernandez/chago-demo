@@ -13,7 +13,6 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase (avoid re-initialization in dev/HMR)
-console.log("API KEY:", process.env.NEXT_PUBLIC_FIREBASE_API_KEY);
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
 // Initialize Firebase services

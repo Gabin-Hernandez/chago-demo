@@ -85,7 +85,8 @@ export const logService = {
     } catch (error) {
       console.error("Error creating log:", error);
       console.error("Error details:", error.message);
-      throw new Error("Error al crear el registro de log");
+      // No lanzar error - los logs son opcionales
+      return { id: null, ...logData };
     }
   },
 
@@ -372,16 +373,16 @@ export const logService = {
         console.warn("No user provided for transaction creation log");
         return null;
       }
-      
+
       const userId = user.uid;
       const userName = user.displayName || user.email || "Usuario desconocido";
-      
+
       // Determinar si es ingreso o gasto
       const transactionType = transactionData?.type === "entrada" ? "ingreso" : "gasto";
-      
+
       // Ensure we have a valid transaction ID
       const safeTransactionId = transactionId || transactionData?.id || 'unknown';
-      
+
       return await this.create({
         action: "create",
         entityType: "transaction",
@@ -404,10 +405,10 @@ export const logService = {
     try {
       const userId = user.uid;
       const userName = user.displayName || user.email || "Usuario desconocido";
-      
+
       // Determinar si es ingreso o gasto
       const transactionType = transactionData.type === "entrada" ? "ingreso" : "gasto";
-      
+
       return await this.create({
         action: "update",
         entityType: "transaction",
@@ -430,17 +431,17 @@ export const logService = {
   async clearAll() {
     try {
       const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
-      
+
       // Create an array of promises to delete each document
       const deletePromises = [];
-      
+
       querySnapshot.forEach((doc) => {
         deletePromises.push(deleteDoc(doc.ref));
       });
-      
+
       // Execute all delete operations
       await Promise.all(deletePromises);
-      
+
       return { success: true, message: "Todos los registros han sido eliminados" };
     } catch (error) {
       console.error("Error clearing logs:", error);

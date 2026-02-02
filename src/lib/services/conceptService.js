@@ -1,15 +1,15 @@
-import { 
-  collection, 
-  doc, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  getDoc, 
-  getDocs, 
-  query, 
-  where, 
+import {
+  collection,
+  doc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  getDoc,
+  getDocs,
+  query,
+  where,
   orderBy,
-  serverTimestamp 
+  serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../firebase/firebaseConfig';
 
@@ -24,7 +24,7 @@ export const conceptService = {
         createdAt: serverTimestamp(),
         isActive: true
       });
-      
+
       return { id: docRef.id, ...conceptData };
     } catch (error) {
       console.error('Error creating concept:', error);
@@ -37,7 +37,7 @@ export const conceptService = {
     try {
       const docRef = doc(db, COLLECTION_NAME, id);
       const docSnap = await getDoc(docRef);
-      
+
       if (docSnap.exists()) {
         return { id: docSnap.id, ...docSnap.data() };
       } else {
@@ -58,14 +58,14 @@ export const conceptService = {
         where('isActive', '==', true),
         orderBy('name', 'asc')
       );
-      
+
       const querySnapshot = await getDocs(q);
       const concepts = [];
-      
+
       querySnapshot.forEach((doc) => {
         concepts.push({ id: doc.id, ...doc.data() });
       });
-      
+
       return concepts;
     } catch (error) {
       console.error('Error getting concepts by general:', error);
@@ -82,14 +82,14 @@ export const conceptService = {
         where('isActive', '==', true),
         orderBy('name', 'asc')
       );
-      
+
       const querySnapshot = await getDocs(q);
       const concepts = [];
-      
+
       querySnapshot.forEach((doc) => {
         concepts.push({ id: doc.id, ...doc.data() });
       });
-      
+
       return concepts;
     } catch (error) {
       console.error('Error getting concepts by type:', error);
@@ -106,18 +106,19 @@ export const conceptService = {
         orderBy('type', 'asc'),
         orderBy('name', 'asc')
       );
-      
+
       const querySnapshot = await getDocs(q);
       const concepts = [];
-      
+
       querySnapshot.forEach((doc) => {
         concepts.push({ id: doc.id, ...doc.data() });
       });
-      
+
       return concepts;
     } catch (error) {
       console.error('Error getting concepts:', error);
-      throw new Error('Error al obtener los conceptos');
+      // En modo demo, retornar array vacío en lugar de error
+      return [];
     }
   },
 
@@ -126,7 +127,7 @@ export const conceptService = {
     try {
       const docRef = doc(db, COLLECTION_NAME, id);
       await updateDoc(docRef, updateData);
-      
+
       return { id, ...updateData };
     } catch (error) {
       console.error('Error updating concept:', error);
@@ -139,7 +140,7 @@ export const conceptService = {
     try {
       // Check if concept has associated transactions
       const hasTransactions = await this.hasAssociatedTransactions(id);
-      
+
       if (hasTransactions) {
         // Soft delete - just deactivate
         await this.update(id, { isActive: false });
@@ -148,7 +149,7 @@ export const conceptService = {
         const docRef = doc(db, COLLECTION_NAME, id);
         await deleteDoc(docRef);
       }
-      
+
       return true;
     } catch (error) {
       console.error('Error deleting concept:', error);
@@ -162,7 +163,7 @@ export const conceptService = {
       const descriptionsRef = collection(db, 'descriptions');
       const q = query(descriptionsRef, where('conceptId', '==', conceptId), where('isActive', '==', true));
       const querySnapshot = await getDocs(q);
-      
+
       return !querySnapshot.empty;
     } catch (error) {
       console.error('Error checking concept descriptions:', error);
@@ -176,7 +177,7 @@ export const conceptService = {
       const transactionsRef = collection(db, 'transactions');
       const q = query(transactionsRef, where('conceptId', '==', conceptId));
       const querySnapshot = await getDocs(q);
-      
+
       return !querySnapshot.empty;
     } catch (error) {
       console.error('Error checking concept transactions:', error);
@@ -202,11 +203,11 @@ export const conceptService = {
   // Validate concept data
   validateConceptData(conceptData) {
     const errors = {};
-    
+
     if (!conceptData.name || conceptData.name.trim() === '') {
       errors.name = 'El nombre del concepto es requerido';
     }
-    
+
     if (!conceptData.type || !['entrada', 'salida'].includes(conceptData.type)) {
       errors.type = 'El tipo debe ser "entrada" o "salida"';
     }
@@ -214,7 +215,7 @@ export const conceptService = {
     if (!conceptData.generalId || conceptData.generalId.trim() === '') {
       errors.generalId = 'La categoría general es requerida';
     }
-    
+
     return {
       isValid: Object.keys(errors).length === 0,
       errors

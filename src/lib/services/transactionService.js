@@ -34,7 +34,7 @@ export const transactionService = {
       });
 
       const newTransaction = { id: docRef.id, ...transactionData };
-      
+
       // Log the transaction creation
       if (user) {
         await logService.logTransactionCreation({
@@ -101,7 +101,7 @@ export const transactionService = {
       if (filters.excludeStatus) {
         q = query(q, where("status", "!=", filters.excludeStatus));
       }
-      
+
       if (filters.division) {
         q = query(q, where("division", "==", filters.division));
       }
@@ -178,7 +178,7 @@ export const transactionService = {
   async update(id, updateData, user) {
     try {
       const docRef = doc(db, COLLECTION_NAME, id);
-      
+
       // Get the current transaction data before updating
       let previousData = null;
       if (user) {
@@ -187,14 +187,14 @@ export const transactionService = {
           previousData = { id: docSnap.id, ...docSnap.data() };
         }
       }
-      
+
       await updateDoc(docRef, {
         ...updateData,
         updatedAt: serverTimestamp(),
       });
 
       const updatedTransaction = { id, ...updateData };
-      
+
       // Log the transaction update
       if (user && previousData) {
         await logService.logTransactionUpdate({
@@ -328,7 +328,8 @@ export const transactionService = {
       return transactions;
     } catch (error) {
       console.error("Error getting transactions by date range:", error);
-      throw new Error("Error al obtener transacciones por rango de fechas");
+      // En modo demo, retornar array vacío en lugar de error
+      return [];
     }
   },
 
@@ -347,7 +348,7 @@ export const transactionService = {
 
       // Get all transactions in the month
       const transactions = await this.getByDateRange(startDate, endDate);
-      
+
       console.log(`Found ${transactions.length} transactions to delete`);
 
       // Notify initial progress
@@ -365,7 +366,7 @@ export const transactionService = {
           await this.delete(transaction.id, user);
           deletedCount++;
           console.log(`Deleted transaction ${transaction.id} - ${transaction.description}`);
-          
+
           // Update progress
           if (onProgress) {
             onProgress(deletedCount, transactions.length);
@@ -373,7 +374,7 @@ export const transactionService = {
         } catch (error) {
           console.error(`Error deleting transaction ${transaction.id}:`, error);
           errors.push(`Error deleting transaction ${transaction.id}: ${error.message}`);
-          
+
           // Still update progress even on error
           if (onProgress) {
             onProgress(deletedCount, transactions.length);
@@ -410,7 +411,7 @@ export const transactionService = {
       };
 
       console.log(`🗑️ Deletion completed: ${deletedCount}/${transactions.length} transactions deleted`);
-      
+
       if (errors.length > 0) {
         console.warn(`⚠️ ${errors.length} errors occurred during deletion:`, errors);
       }
@@ -442,7 +443,7 @@ export const transactionService = {
       });
 
       const newTransaction = { id: docRef.id, ...transactionData };
-      
+
       // Log the initial expense creation
       if (user) {
         await logService.logTransactionCreation({
@@ -488,7 +489,7 @@ export const transactionService = {
           uploadedAt: new Date().toISOString()
         }
       };
-      
+
       const snapshot = await uploadBytes(storageRef, file, metadata);
       const downloadURL = await getDownloadURL(snapshot.ref);
 
@@ -519,7 +520,7 @@ export const transactionService = {
         console.log(`File ${fileName} was already deleted or doesn't exist in storage - this is OK`);
         return true;
       }
-      
+
       // For other storage errors, log but don't throw to avoid breaking the flow
       console.error("Storage error when deleting file:", error);
       throw new Error("Error al eliminar el archivo del almacenamiento");
@@ -584,10 +585,10 @@ export const transactionService = {
   validateFile(file) {
     const maxSize = 10 * 1024 * 1024; // 10MB (más generoso que pagos)
     const allowedTypes = [
-      "image/jpeg", 
-      "image/jpg", 
-      "image/png", 
-      "image/gif", 
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "image/gif",
       "application/pdf",
       "application/msword",
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -599,16 +600,16 @@ export const transactionService = {
     }
 
     if (file.size > maxSize) {
-      return { 
-        isValid: false, 
-        error: `El archivo es muy grande. Tamaño máximo permitido: ${(maxSize / 1024 / 1024).toFixed(1)}MB` 
+      return {
+        isValid: false,
+        error: `El archivo es muy grande. Tamaño máximo permitido: ${(maxSize / 1024 / 1024).toFixed(1)}MB`
       };
     }
 
     if (!allowedTypes.includes(file.type)) {
-      return { 
-        isValid: false, 
-        error: "Tipo de archivo no permitido. Formatos permitidos: JPG, PNG, GIF, PDF, DOC, DOCX, TXT" 
+      return {
+        isValid: false,
+        error: "Tipo de archivo no permitido. Formatos permitidos: JPG, PNG, GIF, PDF, DOC, DOCX, TXT"
       };
     }
 
@@ -653,7 +654,7 @@ export const transactionService = {
       }
 
       const querySnapshot = await getDocs(q);
-      
+
       // Initialize counters
       const stats = {
         pendiente: 0,
@@ -666,7 +667,7 @@ export const transactionService = {
       querySnapshot.forEach((doc) => {
         const data = doc.data();
         const status = data.status || 'pendiente'; // Default to pendiente if no status
-        
+
         if (stats.hasOwnProperty(status)) {
           stats[status]++;
         }

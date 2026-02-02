@@ -20,7 +20,7 @@ export const dashboardService = {
   async getMonthSummary(startDate, endDate) {
     try {
       const transactions = await transactionService.getByDateRange(startDate, endDate);
-      
+
       const summary = {
         entradas: 0,
         salidas: 0,
@@ -45,7 +45,15 @@ export const dashboardService = {
       return summary;
     } catch (error) {
       console.error('Error getting month summary:', error);
-      throw new Error('Error al obtener el resumen del mes');
+      // En modo demo, retornar resumen vacío
+      return {
+        entradas: 0,
+        salidas: 0,
+        balance: 0,
+        totalTransactions: 0,
+        entradasCount: 0,
+        salidasCount: 0
+      };
     }
   },
 
@@ -68,7 +76,7 @@ export const dashboardService = {
     try {
       const transactions = await transactionService.getByDateRange(startDate, endDate);
       const concepts = await conceptService.getAll();
-      
+
       // Create a map of concept names
       const conceptMap = {};
       concepts.forEach(concept => {
@@ -77,10 +85,10 @@ export const dashboardService = {
 
       // Group transactions by concept
       const conceptData = {};
-      
+
       transactions.forEach(transaction => {
         const conceptName = conceptMap[transaction.conceptId] || 'Sin concepto';
-        
+
         if (!conceptData[conceptName]) {
           conceptData[conceptName] = {
             entradas: 0,
@@ -89,13 +97,13 @@ export const dashboardService = {
             count: 0
           };
         }
-        
+
         if (transaction.type === 'entrada') {
           conceptData[conceptName].entradas += transaction.amount;
         } else {
           conceptData[conceptName].salidas += transaction.amount;
         }
-        
+
         conceptData[conceptName].total += transaction.amount;
         conceptData[conceptName].count++;
       });
@@ -103,7 +111,8 @@ export const dashboardService = {
       return conceptData;
     } catch (error) {
       console.error('Error getting transactions by concept for date range:', error);
-      throw new Error('Error al obtener transacciones por concepto para el rango de fechas');
+      // En modo demo, retornar objeto vacío
+      return {};
     }
   },
 
@@ -112,15 +121,15 @@ export const dashboardService = {
     try {
       const trends = [];
       const now = new Date();
-      
+
       // Get data for the last 6 months
       for (let i = 5; i >= 0; i--) {
         const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const startOfMonth = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
         const endOfMonth = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0, 23, 59, 59);
-        
+
         const transactions = await transactionService.getByDateRange(startOfMonth, endOfMonth);
-        
+
         const monthData = {
           month: monthDate.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' }),
           entradas: 0,
@@ -128,7 +137,7 @@ export const dashboardService = {
           balance: 0,
           transactionCount: transactions.length
         };
-        
+
         transactions.forEach(transaction => {
           if (transaction.type === 'entrada') {
             monthData.entradas += transaction.amount;
@@ -136,11 +145,11 @@ export const dashboardService = {
             monthData.salidas += transaction.amount;
           }
         });
-        
+
         monthData.balance = monthData.entradas - monthData.salidas;
         trends.push(monthData);
       }
-      
+
       return trends;
     } catch (error) {
       console.error('Error getting monthly trends:', error);
@@ -152,13 +161,13 @@ export const dashboardService = {
   async getPaymentStatusSummary() {
     try {
       const transactions = await transactionService.getAll({ type: 'salida' });
-      
+
       const summary = {
         pendiente: { count: 0, amount: 0 },
         parcial: { count: 0, amount: 0 },
         pagado: { count: 0, amount: 0 }
       };
-      
+
       transactions.forEach(transaction => {
         const status = transaction.status || 'pendiente';
         if (summary[status]) {
@@ -166,7 +175,7 @@ export const dashboardService = {
           summary[status].amount += transaction.balance || transaction.amount;
         }
       });
-      
+
       return summary;
     } catch (error) {
       console.error('Error getting payment status summary:', error);
@@ -178,7 +187,7 @@ export const dashboardService = {
   async getAvailableMonthsAndYears() {
     try {
       const transactions = await transactionService.getAll();
-      
+
       if (transactions.length === 0) {
         return { months: [], years: [] };
       }
@@ -186,7 +195,7 @@ export const dashboardService = {
       // Extract unique month-year combinations
       const monthYearSet = new Set();
       const yearSet = new Set();
-      
+
       transactions.forEach(transaction => {
         if (transaction.date) {
           // Handle both Date objects and Firestore timestamps
@@ -200,12 +209,12 @@ export const dashboardService = {
             // String date
             date = new Date(transaction.date);
           }
-          
+
           if (!isNaN(date.getTime())) {
             const year = date.getFullYear();
             const month = date.getMonth();
             const monthYear = `${year}-${month.toString().padStart(2, '0')}`;
-            
+
             monthYearSet.add(monthYear);
             yearSet.add(year);
           }
@@ -219,9 +228,9 @@ export const dashboardService = {
           year: parseInt(year),
           month: parseInt(month),
           monthYear,
-          displayName: new Date(parseInt(year), parseInt(month), 1).toLocaleDateString('es-ES', { 
-            month: 'long', 
-            year: 'numeric' 
+          displayName: new Date(parseInt(year), parseInt(month), 1).toLocaleDateString('es-ES', {
+            month: 'long',
+            year: 'numeric'
           })
         };
       });
@@ -243,15 +252,15 @@ export const dashboardService = {
     try {
       const startOfYear = new Date(year, 0, 1);
       const endOfYear = new Date(year, 11, 31, 23, 59, 59);
-      
+
       const transactions = await transactionService.getByDateRange(startOfYear, endOfYear);
-      
+
       if (transactions.length === 0) {
         return [];
       }
 
       const monthSet = new Set();
-      
+
       transactions.forEach(transaction => {
         if (transaction.date) {
           let date;
@@ -262,7 +271,7 @@ export const dashboardService = {
           } else {
             date = new Date(transaction.date);
           }
-          
+
           if (!isNaN(date.getTime()) && date.getFullYear() === year) {
             monthSet.add(date.getMonth());
           }

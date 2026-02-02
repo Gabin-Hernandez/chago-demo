@@ -4,7 +4,7 @@
  */
 
 export const testLogoAccess = async () => {
-  const logoUrl = 'http://localhost:3000/logo.webp';
+  const logoUrl = 'http://localhost:3000/demo-button-label-filled-icon.jpg';
   
   try {
     console.log('🔍 Testing logo accessibility...');

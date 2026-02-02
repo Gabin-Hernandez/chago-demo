@@ -1,0 +1,67 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to get user role
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+    
+    // Helper function to check if user is active
+    function isUserActive() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isActive == true;
+    }
+    
+    // Roles collection - read only for authenticated users
+    match /roles/{roleId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Only admins through backend
+    }
+    
+    // Users collection
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && getUserRole() == 'administrativo';
+    }
+    
+    // Transactions collection
+    match /transactions/{transactionId} {
+      allow read: if isAuthenticated() && isUserActive();
+      allow create: if isAuthenticated() && isUserActive() && getUserRole() in ['administrativo'];
+      allow update: if isAuthenticated() && isUserActive() && getUserRole() in ['administrativo', 'director_general'];
+      allow delete: if isAuthenticated() && isUserActive() && getUserRole() == 'administrativo';
+    }
+    
+    // Catalogs (concepts, subconcepts, descriptions, providers, generals)
+    match /{catalog}/{docId} {
+      allow read: if isAuthenticated() && isUserActive() && catalog in ['concepts', 'subconcepts', 'descriptions', 'providers', 'generals'];
+      allow write: if isAuthenticated() && isUserActive() && getUserRole() == 'administrativo' && catalog in ['concepts', 'subconcepts', 'descriptions', 'providers', 'generals'];
+    }
+    
+    // Recurring expenses
+    match /recurring_expenses/{expenseId} {
+      allow read: if isAuthenticated() && isUserActive();
+      allow write: if isAuthenticated() && isUserActive() && getUserRole() == 'administrativo';
+    }
+    
+    // Payments collection
+    match /payments/{paymentId} {
+      allow read: if isAuthenticated() && isUserActive();
+      allow create: if isAuthenticated() && isUserActive() && getUserRole() in ['administrativo'];
+      allow update: if isAuthenticated() && isUserActive() && getUserRole() in ['administrativo'];
+      allow delete: if isAuthenticated() && isUserActive() && getUserRole() == 'administrativo';
+    }
+    
+    // Logs - read only for admins
+    match /logs/{logId} {
+      allow read: if isAuthenticated() && getUserRole() == 'administrativo';
+      allow write: if false; // Only through backend
+    }
+  }
+}

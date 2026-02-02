@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
+  reactStrictMode: false, // Deshabilitado para demo
 
   // Configuración de headers para cache
   async headers() {
@@ -61,8 +61,14 @@ const nextConfig = {
   },
 
   // Configuración de build ID para invalidar cache con cada deploy
+  // SOLO EN PRODUCCIÓN - En desarrollo causa problemas con HMR
   generateBuildId: async () => {
-    // Usar timestamp redondeado a la hora más cercana
+    // En desarrollo, usar el build ID por defecto de Next.js
+    if (process.env.NODE_ENV === 'development') {
+      return null; // Next.js usará su propio sistema de HMR
+    }
+
+    // En producción, usar timestamp para invalidar cache
     const now = new Date();
     const hour = Math.floor(now.getTime() / (1000 * 60 * 60));
     return `build-${hour}`;

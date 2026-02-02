@@ -52,8 +52,12 @@ export const paymentService = {
         createdAt: serverTimestamp(),
       });
 
-      // Update transaction payment status
-      await this.updateTransactionPaymentStatus(paymentData.transactionId);
+      // Update transaction payment status (don't block if this fails)
+      try {
+        await this.updateTransactionPaymentStatus(paymentData.transactionId);
+      } catch (err) {
+        console.error("Error updating transaction payment status:", err);
+      }
 
       // Send email notification to admin about new payment
       try {
@@ -61,13 +65,13 @@ export const paymentService = {
         const transaction = await transactionService.getById(paymentData.transactionId);
         const { adminEmails } = await settingsService.getEmails();
         const recipients = Array.isArray(adminEmails) ? adminEmails : [];
-        
+
         if (recipients.length > 0) {
           // Get concept and provider information if available
           let conceptName = "N/A";
           let providerName = "N/A";
           let providerInfo = "";
-          
+
           if (transaction) {
             // Get concept name if available
             if (transaction.conceptId) {
@@ -78,14 +82,14 @@ export const paymentService = {
                 console.error("Error getting concept:", err);
               }
             }
-            
+
             // Get provider name if available
             if (transaction.providerId) {
               try {
                 const provider = await providerService.getById(transaction.providerId);
                 if (provider) {
                   providerName = provider.name;
-                  
+
                   // Add provider bank account info if available
                   if (provider.bankAccounts && provider.bankAccounts.length > 0) {
                     const primaryAccount = provider.bankAccounts[0];
@@ -105,25 +109,25 @@ export const paymentService = {
               }
             }
           }
-          
+
           // Calculate remaining balance using the total paid amount
           const totalAmount = transaction ? transaction.amount : 0;
           const paymentSummary = await this.getPaymentSummary(paymentData.transactionId);
           const totalPaid = paymentSummary.totalPaid; // This includes all payments including current one
           const remainingBalance = paymentSummary.balance; // This is already calculated in getPaymentSummary
-          
+
           const subject = `Se ha registrado un pago de $${paymentData.amount.toFixed(2)} - ${conceptName}`;
-          
+
           // Crear el contenido del correo usando el template
           const notesHtml = paymentData.notes ? `<p><strong>Notas:</strong> ${paymentData.notes}</p>` : '';
           const detailUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'https://santiago-fc.vercel.app'}/admin/transacciones/detalle/${paymentData.transactionId}`;
-          
+
           // Formatear los detalles del proveedor
           const providerDetails = `
             <li><strong>Proveedor:</strong> ${providerName}</li>
             ${providerInfo}
           `;
-          
+
           const emailContent = createAdminPaymentNotificationContent({
             amount: paymentData.amount.toFixed(2),
             date: new Date(paymentData.date).toLocaleDateString("es-MX"),
@@ -136,7 +140,7 @@ export const paymentService = {
             notesHtml,
             detailUrl
           });
-          
+
           // Aplicar el template completo
           const html = createEmailTemplate({
             title: 'Nuevo Pago Registrado',
@@ -197,7 +201,8 @@ export const paymentService = {
       return payments;
     } catch (error) {
       console.error("Error getting payments by transaction:", error);
-      throw new Error("Error al obtener los pagos");
+      // Retornar array vacío en lugar de error
+      return [];
     }
   },
 
@@ -291,9 +296,9 @@ export const paymentService = {
           uploadedAt: new Date().toISOString()
         }
       };
-      
+
       console.log("PaymentService - Upload metadata:", metadata);
-      
+
       const snapshot = await uploadBytes(storageRef, file, metadata);
       const downloadURL = await getDownloadURL(snapshot.ref);
 
@@ -386,7 +391,8 @@ export const paymentService = {
       return { totalPaid, balance: transaction.amount - totalPaid };
     } catch (error) {
       console.error("Error updating transaction payment status:", error);
-      throw new Error("Error al actualizar el estado de pago");
+      // No lanzar error, retornar valores por defecto
+      return { totalPaid: 0, balance: 0 };
     }
   },
 
@@ -457,7 +463,15 @@ export const paymentService = {
       };
     } catch (error) {
       console.error("Error getting payment summary:", error);
-      throw new Error("Error al obtener el resumen de pagos");
+      // Retornar resumen por defecto en lugar de error
+      return {
+        totalAmount: 0,
+        totalPaid: 0,
+        balance: 0,
+        paymentsCount: 0,
+        status: 'pendiente',
+        payments: [],
+      };
     }
   },
 };

@@ -15,7 +15,7 @@ import {
 // Definición de roles
 export const ROLES = {
   ADMINISTRATIVO: "administrativo",
-  CONTADOR: "contador", 
+  CONTADOR: "contador",
   DIRECTOR_GENERAL: "director_general",
 };
 
@@ -87,6 +87,14 @@ export let ROLE_PERMISSIONS = { ...DEFAULT_ROLE_PERMISSIONS };
  * Carga los permisos de roles desde Firestore
  */
 export const loadRolePermissionsFromFirestore = async () => {
+  // DEMO MODE: Skip Firestore loading
+  const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+
+  if (DEMO_MODE) {
+    console.log("🎭 DEMO MODE: Using default role permissions (Firestore disabled)");
+    return true;
+  }
+
   try {
     console.log("Loading role permissions from Firestore...");
     // Cargar permisos para cada rol
@@ -104,17 +112,29 @@ export const loadRolePermissionsFromFirestore = async () => {
     return true;
   } catch (error) {
     console.error("Error loading role permissions from Firestore:", error);
+    // No lanzar error, usar defaults
     return false;
   }
 };
 
-// Cargar permisos al inicializar el servicio
-loadRolePermissionsFromFirestore().catch(console.error);
+// Cargar permisos automáticamente al iniciar la aplicación
+// Solo si NO está en modo demo
+if (process.env.NEXT_PUBLIC_DEMO_MODE !== 'true') {
+  loadRolePermissionsFromFirestore().catch(console.error);
+}
 
 /**
  * Obtiene el rol de un usuario
  */
 export const getUserRole = async (userId) => {
+  // DEMO MODE: Return default role without Firestore
+  const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+
+  if (DEMO_MODE) {
+    console.log("🎭 DEMO MODE: Assigning default role (administrativo)");
+    return ROLES.ADMINISTRATIVO;
+  }
+
   try {
     const userDoc = await getDoc(doc(db, "users", userId));
     if (userDoc.exists()) {
@@ -160,11 +180,19 @@ export const hasPermission = (userRole, permission) => {
  * Recarga los permisos de un rol específico desde Firestore
  */
 export const reloadRolePermissions = async (role) => {
+  // DEMO MODE: Skip reload
+  const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+
+  if (DEMO_MODE) {
+    console.log("🎭 DEMO MODE: Skipping permission reload");
+    return { success: true };
+  }
+
   try {
     if (!role || !Object.values(ROLES).includes(role)) {
       return { success: false, error: "Rol inválido" };
     }
-    
+
     const roleDoc = await getDoc(doc(db, "roles", role));
     if (roleDoc.exists() && roleDoc.data().permissions) {
       // Actualizar los permisos en memoria

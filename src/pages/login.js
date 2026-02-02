@@ -55,13 +55,13 @@ const LoginPage = () => {
       <div className="flex-1 flex flex-col justify-center py-8 lg:py-12 px-4 sm:px-6 lg:flex-none lg:px-20 xl:px-24 lg:order-1">
         <div className="mx-auto w-full max-w-sm lg:w-96">
           <div className="text-center">
-            <img  
+            <img
               className="mx-auto h-24 lg:h-32 w-auto"
-              src="/logo.webp"
-              alt="Your Company"
+              src="/demo-button-label-filled-icon.jpg"
+              alt="Logo"
             />
             <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mt-3 lg:mt-5">
-              Bienvenido <br/> <span className="text-primary">Sistema CHAGO</span>
+              Bienvenido <br /> <span className="text-primary">Sistema CHAGO</span>
             </h2>
           </div>
 
